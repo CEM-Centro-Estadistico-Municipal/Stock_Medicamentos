@@ -237,7 +237,7 @@
     <div id="e-otro-wrap" style="display:none; margin-top:8px">
       <label>Escribí el nombre del medicamento: <span class="req">*</span></label>
       <div class="autocomplete-wrap">
-        <input type="text" id="e-med-otro" placeholder="Ej: Atenolol 50mg" oninput="autocomplete('e', this.value)" autocomplete="off">
+        <input type="text" id="e-med-otro" placeholder="Ej: Atenolol 50mg" oninput="buscarMed('e', this.value)" autocomplete="off">
         <div class="autocomplete-list" id="e-ac-list" style="display:none"></div>
       </div>
       <div class="clave-badge" id="e-clave-badge">
@@ -315,7 +315,7 @@
     <div id="s-otro-wrap" style="display:none; margin-top:8px">
       <label>Escribí el nombre del medicamento: <span class="req">*</span></label>
       <div class="autocomplete-wrap">
-        <input type="text" id="s-med-otro" placeholder="Ej: Atenolol 50mg" oninput="autocomplete('s', this.value)" autocomplete="off">
+        <input type="text" id="s-med-otro" placeholder="Ej: Atenolol 50mg" oninput="buscarMed('s', this.value)" autocomplete="off">
         <div class="autocomplete-list" id="s-ac-list" style="display:none"></div>
       </div>
       <div class="clave-badge" id="s-clave-badge">
@@ -519,7 +519,7 @@ function onSelectMed(p) {
   }
 }
 
-function autocomplete(p, val) {
+function buscarMed(p, val) {
   const list = document.getElementById(p + '-ac-list');
   if (!val || val.length < 2) { list.style.display = 'none'; return; }
   const q = val.toLowerCase();
