@@ -363,6 +363,38 @@
   }
   .btn-sm:hover { background: var(--alerta-bg); border-color: var(--alerta); color: var(--alerta); }
 
+  /* ── Tipo de salida ─────────────────────────────────────── */
+  .tipo-salida-btns {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    margin-top: 2px;
+  }
+  .tipo-btn {
+    padding: 10px 12px; border: 1.5px solid var(--neutro-200);
+    border-radius: var(--radius-sm); background: #fff;
+    font-family: var(--font); font-size: 13px; font-weight: 500;
+    color: var(--neutro-400); cursor: pointer;
+    transition: all .15s; text-align: center;
+  }
+  .tipo-btn:hover { border-color: var(--azul-700); color: var(--azul-700); }
+  .tipo-btn.active {
+    background: var(--azul-700); border-color: var(--azul-700);
+    color: #fff;
+  }
+
+  /* ── Subsección condicional ──────────────────────────────── */
+  .subseccion {
+    background: var(--papel); border: 1px solid var(--neutro-200);
+    border-radius: var(--radius-sm); padding: 14px;
+    margin-top: 14px;
+  }
+  .subseccion-titulo {
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .06em;
+    color: var(--neutro-400); margin-bottom: 12px;
+  }
+  .subseccion .field { margin-top: 10px; }
+  .subseccion .field:first-of-type { margin-top: 0; }
+
   .divider {
     border: none; border-top: 1px solid var(--neutro-100);
     margin: 16px 0;
@@ -656,12 +688,116 @@
       </select>
     </div>
 
+    <!-- Tipo de salida -->
+    <div class="field">
+      <label>Tipo de salida <span class="req">*</span></label>
+      <div class="tipo-salida-btns">
+        <button type="button" class="tipo-btn" id="tipo-btn-lote"      onclick="setTipoSalida('lote')">Por lote</button>
+        <button type="button" class="tipo-btn" id="tipo-btn-paciente"  onclick="setTipoSalida('paciente')">Por paciente</button>
+      </div>
+    </div>
+
+    <!-- ── Bloque POR LOTE ── -->
+    <div id="bloque-lote" style="display:none">
+      <div class="subseccion">
+        <div class="subseccion-titulo">Destino del lote</div>
+
+        <div class="field">
+          <label>Destino <span class="req">*</span></label>
+          <select id="s-destino-tipo" onchange="onDestinoChange()">
+            <option value="">— Seleccioná —</option>
+            <option value="sala">Sala sanitaria</option>
+            <option value="operativo">Operativo territorial</option>
+            <option value="otro">Otro fin</option>
+          </select>
+        </div>
+
+        <!-- Sala -->
+        <div id="bloque-sala" style="display:none">
+          <div class="field">
+            <label>Sala <span class="req">*</span></label>
+            <select id="s-sala">
+              <option value="">— Seleccioná —</option>
+              <option>Arroyo Vega</option>
+              <option>CIC</option>
+              <option>Tercera Sección</option>
+              <option>Bicentenario</option>
+              <option value="__otra_sala__">Otra (especificar)</option>
+            </select>
+          </div>
+          <div class="field" id="bloque-sala-otra" style="display:none">
+            <label>Nombre de la sala <span class="req">*</span></label>
+            <input type="text" id="s-sala-otra" placeholder="Escribí el nombre de la sala">
+          </div>
+        </div>
+
+        <!-- Operativo territorial -->
+        <div id="bloque-operativo" style="display:none">
+          <div class="field">
+            <label>Lugar del operativo <span class="req">*</span></label>
+            <input type="text" id="s-operativo-lugar" placeholder="Ej: Barrio Don Bosco, Paraje El Toro...">
+          </div>
+        </div>
+
+        <!-- Otro fin -->
+        <div id="bloque-otro-fin" style="display:none">
+          <div class="field">
+            <label>Especificar destino <span class="req">*</span></label>
+            <input type="text" id="s-otro-fin" placeholder="Describí el destino">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Bloque POR PACIENTE ── -->
+    <div id="bloque-paciente" style="display:none">
+      <div class="subseccion">
+        <div class="subseccion-titulo">Datos del paciente</div>
+
+        <div class="field">
+          <label>Nombre y apellido <span class="req">*</span></label>
+          <input type="text" id="s-pac-nombre" placeholder="Apellido, Nombre">
+        </div>
+
+        <div class="field">
+          <label>DNI <span class="req">*</span></label>
+          <input type="text" id="s-pac-dni" placeholder="Ej: 28.456.789" maxlength="12">
+        </div>
+
+        <div class="field">
+          <label>Cobertura médica</label>
+          <select id="s-pac-cobertura">
+            <option value="">Sin cobertura / no informada</option>
+            <option>PAMI</option>
+            <option>IOSCOR</option>
+            <option>OSECAC</option>
+            <option>OSDE</option>
+            <option>Swiss Medical</option>
+            <option>Galeno</option>
+            <option>Medifé</option>
+            <option>Sancor Salud</option>
+            <option>Subsidio provincial (SSSALUD)</option>
+            <option value="__otra_cobertura__">Otra (especificar)</option>
+          </select>
+        </div>
+        <div class="field" id="bloque-otra-cobertura" style="display:none">
+          <label>Nombre de la cobertura</label>
+          <input type="text" id="s-pac-cobertura-otra" placeholder="Nombre de la obra social o prepaga">
+        </div>
+
+        <div class="field">
+          <label>N° de receta <span class="req">*</span></label>
+          <input type="text" id="s-receta" placeholder="Número de receta">
+        </div>
+      </div>
+    </div>
+
+    <!-- Medicamento (siempre visible) -->
     <div class="med-selector">
       <div class="med-selector-title">
         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
         Medicamento
       </div>
-
       <div class="med-step">
         <label>1. Droga <span class="req">*</span></label>
         <div class="autocomplete-wrap">
@@ -670,21 +806,18 @@
           <div class="autocomplete-list" id="s-droga-list" style="display:none"></div>
         </div>
       </div>
-
       <div class="med-step">
         <label>2. Dosis</label>
         <select id="s-dosis" onchange="onDosisChange('s')" disabled>
           <option value="">— Primero elegí la droga —</option>
         </select>
       </div>
-
       <div class="med-step" style="margin-bottom:0">
         <label>3. Presentación</label>
         <select id="s-presentacion" onchange="onPresentacionChange('s')" disabled>
           <option value="">— Primero elegí la dosis —</option>
         </select>
       </div>
-
       <div class="clave-badge" id="s-clave-badge">
         Se registrará como: <strong id="s-clave-texto"></strong>
         <button onclick="limpiarMed('s')">Cambiar</button>
@@ -693,15 +826,11 @@
 
     <input type="hidden" id="s-med-clave">
     <input type="hidden" id="s-med-nombre">
+    <input type="hidden" id="s-tipo-salida">
 
     <div class="field">
       <label>Cantidad <span class="req">*</span></label>
       <input type="number" id="s-cantidad" min="1" placeholder="0">
-    </div>
-
-    <div class="field">
-      <label>N° de receta <span class="req">*</span></label>
-      <input type="text" id="s-receta" placeholder="Número de receta">
     </div>
 
     <button class="btn btn-primario" id="btn-salida" onclick="registrarSalida()">
@@ -1611,39 +1740,121 @@ async function registrarEntrada() {
   }
 }
 
+// ─── Tipo de salida ───────────────────────────────────────────
+function setTipoSalida(tipo) {
+  document.getElementById('s-tipo-salida').value = tipo;
+  document.getElementById('tipo-btn-lote').classList.toggle('active', tipo === 'lote');
+  document.getElementById('tipo-btn-paciente').classList.toggle('active', tipo === 'paciente');
+  document.getElementById('bloque-lote').style.display     = tipo === 'lote'     ? 'block' : 'none';
+  document.getElementById('bloque-paciente').style.display = tipo === 'paciente' ? 'block' : 'none';
+}
+
+function onDestinoChange() {
+  var v = document.getElementById('s-destino-tipo').value;
+  document.getElementById('bloque-sala').style.display       = v === 'sala'      ? 'block' : 'none';
+  document.getElementById('bloque-operativo').style.display  = v === 'operativo' ? 'block' : 'none';
+  document.getElementById('bloque-otro-fin').style.display   = v === 'otro'      ? 'block' : 'none';
+}
+
+// Mostrar campo "otra sala" si elige Otra
+document.addEventListener('change', function(e) {
+  if (e.target.id === 's-sala') {
+    document.getElementById('bloque-sala-otra').style.display =
+      e.target.value === '__otra_sala__' ? 'block' : 'none';
+  }
+  if (e.target.id === 's-pac-cobertura') {
+    document.getElementById('bloque-otra-cobertura').style.display =
+      e.target.value === '__otra_cobertura__' ? 'block' : 'none';
+  }
+});
+
 // ─── Registrar SALIDA ─────────────────────────────────────────
 async function registrarSalida() {
-  if (!validar([
-    ['s-fecha','Fecha'], ['s-dep','Dependencia'],
-    ['s-cantidad','Cantidad'], ['s-receta','N° de receta']
-  ])) return;
-  if (!getMedNombre('s')) {
-    toast('Seleccioná un medicamento completo', 'err');
-    document.getElementById('s-droga').focus();
-    return;
+  var tipo = document.getElementById('s-tipo-salida').value;
+
+  if (!validar([['s-fecha','Fecha'], ['s-dep','Dependencia']])) return;
+  if (!tipo) { toast('Seleccioná el tipo de salida', 'err'); return; }
+  if (!getMedNombre('s')) { toast('Seleccioná un medicamento', 'err'); document.getElementById('s-droga').focus(); return; }
+  if (!validar([['s-cantidad','Cantidad']])) return;
+
+  // Validaciones según tipo
+  if (tipo === 'lote') {
+    var dest = document.getElementById('s-destino-tipo').value;
+    if (!dest) { toast('Seleccioná el destino del lote', 'err'); return; }
+    if (dest === 'sala') {
+      var sala = document.getElementById('s-sala').value;
+      if (!sala) { toast('Seleccioná la sala', 'err'); return; }
+      if (sala === '__otra_sala__' && !document.getElementById('s-sala-otra').value.trim()) {
+        toast('Escribí el nombre de la sala', 'err'); return;
+      }
+    }
+    if (dest === 'operativo' && !document.getElementById('s-operativo-lugar').value.trim()) {
+      toast('Indicá el lugar del operativo', 'err'); return;
+    }
+    if (dest === 'otro' && !document.getElementById('s-otro-fin').value.trim()) {
+      toast('Especificá el destino', 'err'); return;
+    }
+  }
+
+  if (tipo === 'paciente') {
+    if (!validar([['s-pac-nombre','Nombre del paciente'], ['s-pac-dni','DNI'], ['s-receta','N° de receta']])) return;
   }
 
   const btn = document.getElementById('btn-salida');
   btn.disabled = true; btn.textContent = 'Enviando...';
 
+  // Construir destino
+  var destino = '';
+  if (tipo === 'lote') {
+    var dt = document.getElementById('s-destino-tipo').value;
+    if (dt === 'sala') {
+      var sv = document.getElementById('s-sala').value;
+      destino = sv === '__otra_sala__'
+        ? document.getElementById('s-sala-otra').value.trim()
+        : sv;
+    } else if (dt === 'operativo') {
+      destino = 'Operativo: ' + document.getElementById('s-operativo-lugar').value.trim();
+    } else {
+      destino = document.getElementById('s-otro-fin').value.trim();
+    }
+  }
+
+  // Cobertura
+  var cobertura = '';
+  if (tipo === 'paciente') {
+    var cv = document.getElementById('s-pac-cobertura').value;
+    cobertura = cv === '__otra_cobertura__'
+      ? document.getElementById('s-pac-cobertura-otra').value.trim()
+      : cv;
+  }
+
   const datos = {
-    tipo: 'salida',
-    fecha: document.getElementById('s-fecha').value,
-    dependencia: document.getElementById('s-dep').value,
-    medicamento: getMedNombre('s'),
-    medicamento_clave: getMedClave('s'),
-    cantidad: document.getElementById('s-cantidad').value,
-    n_receta: document.getElementById('s-receta').value,
-    timestamp: new Date().toLocaleString('es-AR')
+    tipo:               'salida',
+    tipo_salida:        tipo,
+    fecha:              document.getElementById('s-fecha').value,
+    dependencia:        document.getElementById('s-dep').value,
+    medicamento:        getMedNombre('s'),
+    medicamento_clave:  getMedClave('s'),
+    cantidad:           document.getElementById('s-cantidad').value,
+    // Lote
+    destino_tipo:       tipo === 'lote' ? document.getElementById('s-destino-tipo').value : '',
+    destino:            destino,
+    // Paciente
+    paciente_nombre:    tipo === 'paciente' ? document.getElementById('s-pac-nombre').value.trim() : '',
+    paciente_dni:       tipo === 'paciente' ? document.getElementById('s-pac-dni').value.trim() : '',
+    paciente_cobertura: cobertura,
+    n_receta:           tipo === 'paciente' ? document.getElementById('s-receta').value.trim() : '',
+    timestamp:          new Date().toLocaleString('es-AR')
   };
 
   const ok = await enviarAlSheet(datos);
-  btn.disabled = false; btn.innerHTML = '📤 Registrar salida';
+  btn.disabled = false;
+  btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="m16 13-4-4-4 4"/><path d="M8 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4"/><path d="M16 5h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4"/></svg> Registrar salida';
 
   if (ok) {
-    toast('✅ Salida registrada', 'ok');
+    toast('Salida registrada', 'ok');
     guardarHistorial('salida', datos);
-    limpiarForm('s');
+    limpiarFormSalida();
   } else {
     toast('Error al enviar. Revisá la conexión.', 'err');
   }
@@ -1684,6 +1895,25 @@ function limpiarHistorial() {
   localStorage.removeItem('historial');
   renderHistorial();
   toast('Historial borrado', '');
+}
+
+function limpiarFormSalida() {
+  const hoy = new Date().toISOString().split('T')[0];
+  limpiarMed('s');
+  document.getElementById('s-cantidad').value  = '';
+  document.getElementById('s-fecha').value     = hoy;
+  document.getElementById('s-tipo-salida').value = '';
+  document.getElementById('tipo-btn-lote').classList.remove('active');
+  document.getElementById('tipo-btn-paciente').classList.remove('active');
+  document.getElementById('bloque-lote').style.display     = 'none';
+  document.getElementById('bloque-paciente').style.display = 'none';
+  document.getElementById('s-destino-tipo').value = '';
+  ['bloque-sala','bloque-operativo','bloque-otro-fin','bloque-sala-otra','bloque-otra-cobertura']
+    .forEach(function(id) { document.getElementById(id).style.display = 'none'; });
+  ['s-sala','s-sala-otra','s-operativo-lugar','s-otro-fin',
+   's-pac-nombre','s-pac-dni','s-pac-cobertura-otra','s-receta']
+    .forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('s-pac-cobertura').selectedIndex = 0;
 }
 
 function limpiarForm(p) {
