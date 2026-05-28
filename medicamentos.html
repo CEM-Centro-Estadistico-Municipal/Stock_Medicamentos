@@ -1348,6 +1348,7 @@ function showTab(id, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + id).classList.add('active');
   btn.classList.add('active');
+  if (id === 'stock' && stockData.length === 0) cargarStock();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1710,13 +1711,8 @@ var stockData    = [];
 var sortCol      = 'medicamento';
 var sortAsc      = true;
 var filtroEstado = '';
-var SCRIPT_URL   = 'https://script.google.com/macros/s/AKfycbzIZ_VlMiOOZFbVW8NJm3q4aehSbr2EkD2sfBiMCMoKjFgvsKSueFJnlaC31VXp7HOR/exec';
 
-function getScriptURL() { return SCRIPT_URL; }
-
-function guardarURL() {
-  // No se usa — URL fija
-}
+function guardarURL() { /* URL fija en SCRIPT_URL */ }
 
 function cargarStock() {
   document.getElementById('config-url-bar').style.display = 'none';
@@ -1725,7 +1721,7 @@ function cargarStock() {
   btn.disabled = true;
   btn.classList.add('loading');
 
-  fetch(url + '?hoja=stock')
+  fetch(SCRIPT_URL + '?hoja=stock')
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.ok) throw new Error(data.error || 'Error desconocido');
@@ -1845,13 +1841,6 @@ function esc(str) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-
-// Al activar la pestaña stock, cargar si hay URL guardada
-var _showTabOrig = showTab;
-showTab = function(id, btn) {
-  _showTabOrig(id, btn);
-  if (id === 'stock' && stockData.length === 0) cargarStock();
-};
 
 cargarConfig();
 </script>
