@@ -616,23 +616,24 @@ function validar(campos) {
 
 // ─── Enviar al Sheet via Apps Script ─────────────────────────
 async function enviarAlSheet(params) {
-  const url = 'https://script.google.com/macros/s/AKfycbzIZ_VlMiOOZFbVW8NJm3q4aehSbr2EkD2sfBiMCMoKjFgvsKSueFJnlaC31VXp7HOR/exec'; // URL fija del Apps Script
-  if (!url) { toast('Configurá la URL del Apps Script', 'err'); return false; }
-  try {
-    const r = await fetch(url, {
+  const url = 'https://script.google.com/macros/s/AKfycbzIZ_VlMiOOZFbVW8NJm3q4aehSbr2EkD2sfBiMCMoKjFgvsKSueFJnlaC31VXp7HOR/exec';
+  return new Promise((resolve) => {
+    // Apps Script requiere no-cors con POST y Content-Type text/plain
+    fetch(url, {
       method: 'POST',
-      body: JSON.stringify(params),
-      headers: { 'Content-Type': 'application/json' }
-    });
-    return r.ok;
-  } catch {
-    // Intentar con GET como fallback (algunos deployments)
-    try {
-      const qs = new URLSearchParams(params).toString();
-      await fetch(`${url}?${qs}`, { method: 'GET', mode: 'no-cors' });
-      return true;
-    } catch { return false; }
-  }
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(params)
+    })
+    .then(() => resolve(true))
+    .catch(() => {
+      // Fallback: GET con parámetros
+      const qs = new URLSearchParams({ data: JSON.stringify(params) }).toString();
+      return fetch(`${url}?${qs}`, { method: 'GET', mode: 'no-cors' });
+    })
+    .then(() => resolve(true))
+    .catch(() => resolve(false));
+  });
 }
 
 // ─── Registrar ENTRADA ────────────────────────────────────────
