@@ -185,8 +185,7 @@
   <details class="config-panel">
     <summary>⚙ Configuración inicial</summary>
     <div style="margin-top:12px">
-      <label>URL del Google Sheet (Apps Script)</label>
-      <input type="text" id="cfg-url-entrada" placeholder="https://script.google.com/macros/s/.../exec">
+
       <label style="margin-top:10px">Tu nombre / responsable por defecto</label>
       <input type="text" id="cfg-responsable" placeholder="Nombre Apellido">
       <button class="btn btn-verde" style="margin-top:12px" onclick="guardarConfig()">Guardar</button>
@@ -481,7 +480,7 @@ let remediarItems = [];
 
 // ─── Config ──────────────────────────────────────────────────
 function cargarConfig() {
-  document.getElementById('cfg-url-entrada').value = localStorage.getItem('appscript_url') || '';
+
   document.getElementById('cfg-responsable').value = localStorage.getItem('responsable') || '';
   document.getElementById('e-responsable').value = localStorage.getItem('responsable') || '';
   const hoy = new Date().toISOString().split('T')[0];
@@ -491,7 +490,7 @@ function cargarConfig() {
 }
 
 function guardarConfig() {
-  localStorage.setItem('appscript_url', document.getElementById('cfg-url-entrada').value.trim());
+  
   localStorage.setItem('responsable', document.getElementById('cfg-responsable').value.trim());
   toast('Configuración guardada', 'ok');
 }
@@ -617,7 +616,7 @@ function validar(campos) {
 
 // ─── Enviar al Sheet via Apps Script ─────────────────────────
 async function enviarAlSheet(params) {
-  const url = localStorage.getItem('appscript_url');
+  const url = 'https://script.google.com/macros/s/AKfycbzIZ_VlMiOOZFbVW8NJm3q4aehSbr2EkD2sfBiMCMoKjFgvsKSueFJnlaC31VXp7HOR/exec'; // URL fija del Apps Script
   if (!url) { toast('Configurá la URL del Apps Script', 'err'); return false; }
   try {
     const r = await fetch(url, {
