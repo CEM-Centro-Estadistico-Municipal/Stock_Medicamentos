@@ -850,26 +850,86 @@
       <h2>Importar formulario B REMEDIAR</h2>
     </div>
 
-    <label class="file-zone" for="pdf-input">
-      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-      <div style="font-size:14px; font-weight:500; color:var(--tinta); margin-bottom:4px">Seleccioná el PDF del formulario B</div>
-      <div style="font-size:12px">o arrastrá el archivo aquí</div>
-      <input type="file" id="pdf-input" accept=".pdf" onchange="procesarPDF(this)">
-    </label>
+    <!-- Zona de carga -->
+    <div id="rem-upload-zone">
+      <label class="file-zone" for="csv-input">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div style="font-size:14px; font-weight:500; color:var(--tinta); margin-bottom:4px; margin-top:8px">Subir el CSV del formulario B</div>
+        <div style="font-size:12px">Exportá el formulario B de REMEDIAR como CSV y subilo acá</div>
+        <input type="file" id="csv-input" accept=".csv,.txt" onchange="procesarCSV(this)">
+      </label>
 
-    <button class="btn btn-secundario" id="btn-analizar" style="display:none" onclick="analizarPDF()">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      Analizar PDF
-    </button>
+      <div style="margin-top:12px; padding:12px; background:var(--azul-50); border:1px solid var(--azul-100); border-radius:var(--radius-sm); font-size:12px; color:var(--azul-700);">
+        <strong>Formato esperado del CSV:</strong> el archivo debe tener al menos las columnas
+        <em>Medicamento</em> (o Droga / Nombre) y <em>Cantidad</em>. El separador puede ser coma o punto y coma.
+      </div>
+    </div>
 
-    <div id="remediar-resultados" style="display:none">
+    <!-- Configuración de columnas (aparece tras cargar) -->
+    <div id="rem-config-cols" style="display:none">
       <hr class="divider">
-      <div style="font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--neutro-400); margin-bottom:8px">Medicamentos detectados</div>
-      <table>
-        <thead><tr><th>Medicamento</th><th>Clave</th><th>Cantidad</th></tr></thead>
-        <tbody id="remediar-tabla"></tbody>
-      </table>
-      <button class="btn btn-secundario" onclick="confirmarREMEDIAR()">Confirmar carga al Sheet</button>
+      <div style="font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--neutro-400); margin-bottom:10px">Configurar columnas del CSV</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px">
+        <div class="field" style="margin:0">
+          <label>Columna de medicamento <span class="req">*</span></label>
+          <select id="rem-col-med" onchange="actualizarPreview()"></select>
+        </div>
+        <div class="field" style="margin:0">
+          <label>Columna de cantidad <span class="req">*</span></label>
+          <select id="rem-col-cant" onchange="actualizarPreview()"></select>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px">
+        <div class="field" style="margin:0">
+          <label>Dependencia destino <span class="req">*</span></label>
+          <select id="rem-dep">
+            <option value="">— Seleccioná —</option>
+            <option>CIC</option>
+            <option>Asistencia</option>
+            <option>Otros</option>
+          </select>
+        </div>
+        <div class="field" style="margin:0">
+          <label>Responsable <span class="req">*</span></label>
+          <input type="text" id="rem-responsable" placeholder="Nombre y apellido">
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview de filas detectadas -->
+    <div id="rem-preview" style="display:none">
+      <hr class="divider">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px">
+        <div style="font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--neutro-400)">
+          Medicamentos detectados — <span id="rem-count">0</span> filas
+        </div>
+        <button class="btn-sm" onclick="resetREMEDIAR()">Cargar otro CSV</button>
+      </div>
+
+      <div class="stock-table-wrap">
+        <table class="stock-table">
+          <thead>
+            <tr>
+              <th style="width:32px">
+                <input type="checkbox" id="rem-chk-all" onchange="toggleTodos(this)" title="Seleccionar todo">
+              </th>
+              <th>Medicamento (del CSV)</th>
+              <th>Clave normalizada</th>
+              <th style="width:90px">Cantidad</th>
+            </tr>
+          </thead>
+          <tbody id="rem-tbody"></tbody>
+        </table>
+      </div>
+
+      <div id="rem-alerta-sin-clave" style="display:none; margin-top:10px; padding:10px 12px; background:var(--advert-bg); border:1px solid var(--advert); border-radius:var(--radius-sm); font-size:12px; color:#7a5200">
+        Algunos medicamentos no pudieron normalizarse automáticamente. Podés editarlos manualmente en la columna "Clave normalizada" antes de confirmar.
+      </div>
+
+      <button class="btn btn-secundario" id="btn-confirmar-rem" onclick="confirmarREMEDIAR()" style="margin-top:14px">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Confirmar carga al Sheet
+      </button>
     </div>
   </div>
 </div>
@@ -997,71 +1057,105 @@ const CATALOGO = {
     "25mg/ml": ["Gotas"]
   },
   "Ibuprofeno": {
-    "200mg":     ["Comprimidos", "Suspensión pediátrica"],
-    "400mg":     ["Comprimidos"],
-    "600mg":     ["Comprimidos"],
-    "100mg/5ml": ["Suspensión pediátrica"]
+    "200mg":      ["Comprimidos"],
+    "400mg":      ["Comprimidos"],
+    "600mg":      ["Comprimidos"],
+    "100mg/5ml":  ["Suspensión pediátrica"]
   },
   "Paracetamol": {
-    "500mg":     ["Comprimidos"],
-    "1g":        ["Comprimidos"],
-    "120mg/5ml": ["Jarabe pediátrico"],
-    "250mg/5ml": ["Solución oral"]
+    "500mg":      ["Comprimidos"],
+    "1g":         ["Comprimidos"],
+    "100mg/ml":   ["Solución oral"],
+    "120mg/5ml":  ["Jarabe pediátrico"],
+    "250mg/5ml":  ["Solución oral pediátrica"]
   },
   // ── Antibióticos ─────────────────────────────────────────────
+  "Aciclovir": {
+    "400mg": ["Comprimidos"]
+  },
   "Amoxicilina": {
-    "250mg": ["Suspensión pediátrica"],
-    "500mg": ["Comprimidos", "Cápsulas"],
-    "875mg": ["Comprimidos"]
+    "250mg/5ml": ["Suspensión pediátrica"],
+    "500mg/5ml": ["Suspensión pediátrica"],
+    "500mg":     ["Comprimidos", "Cápsulas"],
+    "875mg":     ["Comprimidos"]
   },
   "Amoxicilina + Clavulánico": {
-    "400/57mg":  ["Suspensión pediátrica"],
-    "875/125mg": ["Comprimidos"]
+    "400+57mg/5ml": ["Suspensión pediátrica"],
+    "875+125mg":    ["Comprimidos"]
   },
   "Azitromicina": {
     "200mg/5ml": ["Suspensión pediátrica"],
     "500mg":     ["Comprimidos"]
   },
   "Cefalexina": {
-    "250mg/5ml": ["Suspensión pediátrica"],
+    "500mg/5ml": ["Suspensión pediátrica"],
     "500mg":     ["Cápsulas", "Comprimidos"]
   },
   "Ciprofloxacina": {
     "250mg": ["Comprimidos"],
     "500mg": ["Comprimidos"]
   },
+  "Ciprofloxacina + Hidrocortisona": {
+    "0.2+0.1%": ["Gotas óticas"]
+  },
   "Claritromicina": {
     "250mg/5ml": ["Suspensión pediátrica"],
     "500mg":     ["Comprimidos"]
+  },
+  "Clindamicina": {
+    "300mg": ["Cápsulas"]
+  },
+  "Cotrimoxazol (SMX+TMP)": {
+    "200+40mg/5ml": ["Suspensión pediátrica"],
+    "800+160mg":    ["Comprimidos"]
   },
   "Doxiciclina": {
     "100mg": ["Comprimidos", "Cápsulas"]
   },
   "Eritromicina": {
+    "50mg/5ml":  ["Gotas oftálmicas"],
     "250mg/5ml": ["Suspensión pediátrica"],
     "500mg":     ["Comprimidos"]
+  },
+  "Furazolidona": {
+    "16.5mg/5ml": ["Suspensión pediátrica"]
   },
   "Levofloxacina": {
     "250mg": ["Comprimidos"],
     "500mg": ["Comprimidos"]
   },
   "Metronidazol": {
-    "250mg": ["Comprimidos"],
-    "500mg": ["Comprimidos", "Inyectable"]
+    "125mg/5ml": ["Suspensión pediátrica"],
+    "250mg":     ["Comprimidos"],
+    "500mg":     ["Comprimidos", "Óvulos", "Inyectable"]
+  },
+  "Miconazol": {
+    "2%":    ["Crema"],
+    "400mg": ["Óvulos"]
   },
   "Nitrofurantoína": {
     "50mg":  ["Comprimidos"],
     "100mg": ["Cápsulas"]
   },
+  "Norfloxacina": {
+    "400mg": ["Comprimidos"]
+  },
+  "Penicilina G": {
+    "1.000.000 UI":   ["Inyectable"],
+    "2.400.000 UI":   ["Inyectable"]
+  },
+  "Tobramicina": {
+    "0.3%": ["Gotas oftálmicas"]
+  },
   "Trimetoprima + Sulfametoxazol": {
-    "80/400mg":   ["Comprimidos"],
-    "160/800mg":  ["Comprimidos"],
-    "200/40mg/5ml": ["Suspensión pediátrica"]
+    "80/400mg":       ["Comprimidos"],
+    "160/800mg":      ["Comprimidos"],
+    "200/40mg/5ml":   ["Suspensión pediátrica"]
   },
   // ── Cardiovascular / HTA ─────────────────────────────────────
   "Amiodarona": {
-    "200mg":     ["Comprimidos"],
-    "150mg/3ml": ["Inyectable"]
+    "200mg":      ["Comprimidos"],
+    "150mg/3ml":  ["Inyectable"]
   },
   "Amlodipina": {
     "5mg":  ["Comprimidos"],
@@ -1111,6 +1205,9 @@ const CATALOGO = {
     "50mg":  ["Comprimidos"],
     "100mg": ["Comprimidos"]
   },
+  "Metildopa": {
+    "500mg": ["Comprimidos"]
+  },
   "Metoprolol": {
     "50mg":  ["Comprimidos"],
     "100mg": ["Comprimidos"]
@@ -1134,8 +1231,8 @@ const CATALOGO = {
     "5mg": ["Comprimidos"]
   },
   "Gliclazida": {
-    "60mg": ["Comprimidos liberación prolongada"],
-    "80mg": ["Comprimidos"]
+    "60mg LM": ["Comprimidos liberación modificada"],
+    "80mg":    ["Comprimidos"]
   },
   "Insulina NPH": {
     "100 UI/ml": ["Vial 10ml", "Cartucho 3ml"]
@@ -1148,6 +1245,119 @@ const CATALOGO = {
     "850mg":    ["Comprimidos"],
     "850mg LP": ["Comprimidos liberación prolongada"],
     "1000mg":   ["Comprimidos"]
+  },
+  // ── Neurológico / psiquiátrico ────────────────────────────────
+  "Ácido Valproico": {
+    "250mg/5ml": ["Jarabe"]
+  },
+  "Carbamazepina": {
+    "200mg":      ["Comprimidos"],
+    "6.25mg/5ml": ["Suspensión pediátrica"]
+  },
+  "Clonazepam": {
+    "0.5mg":    ["Comprimidos"],
+    "1mg":      ["Comprimidos"],
+    "2mg":      ["Comprimidos"],
+    "2.5mg/ml": ["Gotas"]
+  },
+  "Divalproato de sodio": {
+    "500mg": ["Comprimidos"]
+  },
+  "Fenobarbital": {
+    "15mg":    ["Comprimidos"],
+    "100mg":   ["Comprimidos"],
+    "40mg/ml": ["Gotas pediátricas"]
+  },
+  "Fenitoína": {
+    "100mg":     ["Cápsulas"],
+    "50mg/5ml":  ["Suspensión pediátrica"]
+  },
+  "Haloperidol": {
+    "1mg":    ["Comprimidos"],
+    "5mg":    ["Comprimidos"],
+    "2mg/ml": ["Gotas"]
+  },
+  "Levodopa + Carbidopa": {
+    "100/25mg":  ["Comprimidos"],
+    "250/25mg":  ["Comprimidos"]
+  },
+  "Pramipexol": {
+    "0.25mg": ["Comprimidos"],
+    "1mg":    ["Comprimidos"]
+  },
+  "Risperidona": {
+    "1mg":    ["Comprimidos"],
+    "2mg":    ["Comprimidos"],
+    "1mg/ml": ["Solución oral"]
+  },
+  "Valproato de magnesio": {
+    "400mg": ["Comprimidos"]
+  },
+  "Valproato de sodio": {
+    "200mg":      ["Comprimidos"],
+    "400mg":      ["Comprimidos"],
+    "500mg/5ml":  ["Jarabe"]
+  },
+  // ── Tiroides ─────────────────────────────────────────────────
+  "Levotiroxina": {
+    "25mcg":  ["Comprimidos"],
+    "50mcg":  ["Comprimidos"],
+    "100mcg": ["Comprimidos"]
+  },
+  // ── Corticoides ──────────────────────────────────────────────
+  "Betametasona": {
+    "0.1%":   ["Crema"],
+    "0.5mg":  ["Comprimidos"],
+    "0.5mg/ml": ["Gotas"],
+    "4mg/ml": ["Inyectable"]
+  },
+  "Dexametasona": {
+    "0.5mg":  ["Comprimidos"],
+    "4mg":    ["Comprimidos"],
+    "4mg/ml": ["Inyectable"],
+    "8mg/2ml": ["Inyectable"]
+  },
+  "Hidrocortisona": {
+    "100mg": ["Inyectable"],
+    "500mg": ["Inyectable"]
+  },
+  "Meprednisona": {
+    "4mg": ["Comprimidos"]
+  },
+  "Prednisona": {
+    "5mg":  ["Comprimidos"],
+    "20mg": ["Comprimidos"],
+    "40mg": ["Comprimidos"]
+  },
+  // ── Gastrointestinal ─────────────────────────────────────────
+  "Domperidona": {
+    "10mg":    ["Comprimidos"],
+    "5mg/5ml": ["Suspensión pediátrica"]
+  },
+  "Loperamida": {
+    "2mg": ["Comprimidos"]
+  },
+  "Metoclopramida": {
+    "0.5% / 5mg/ml": ["Solución inyectable"],
+    "10mg":          ["Comprimidos"]
+  },
+  "Misoprostol": {
+    "200mcg": ["Comprimidos"]
+  },
+  "Omeprazol": {
+    "20mg": ["Cápsulas"],
+    "40mg": ["Cápsulas", "Inyectable"]
+  },
+  "Pantoprazol": {
+    "20mg": ["Comprimidos"],
+    "40mg": ["Comprimidos", "Inyectable"]
+  },
+  "Ranitidina": {
+    "150mg": ["Comprimidos"],
+    "300mg": ["Comprimidos"]
+  },
+  "Sucralfato": {
+    "1g": ["Comprimidos", "Suspensión oral"]
   },
   // ── Respiratorio ─────────────────────────────────────────────
   "Budesonida": {
@@ -1162,92 +1372,9 @@ const CATALOGO = {
   },
   "Salbutamol": {
     "1mg/ml":       ["Solución nebulizar"],
+    "5mg/ml":       ["Solución nebulizar"],
     "2mg":          ["Comprimidos"],
     "100mcg/dosis": ["Aerosol"]
-  },
-  // ── Corticoides ──────────────────────────────────────────────
-  "Betametasona": {
-    "0.1%":   ["Crema"],
-    "0.5mg":  ["Comprimidos"],
-    "4mg/ml": ["Inyectable"]
-  },
-  "Dexametasona": {
-    "0.5mg":  ["Comprimidos"],
-    "4mg":    ["Comprimidos"],
-    "4mg/ml": ["Inyectable"]
-  },
-  "Hidrocortisona": {
-    "100mg": ["Inyectable"],
-    "500mg": ["Inyectable"]
-  },
-  "Prednisona": {
-    "5mg":  ["Comprimidos"],
-    "20mg": ["Comprimidos"],
-    "40mg": ["Comprimidos"]
-  },
-  // ── Gastrointestinal ─────────────────────────────────────────
-  "Antiácido (hidróxido Al+Mg)": {
-    "—": ["Suspensión oral", "Comprimidos masticables"]
-  },
-  "Domperidona": {
-    "10mg":    ["Comprimidos"],
-    "5mg/5ml": ["Suspensión pediátrica"]
-  },
-  "Metoclopramida": {
-    "10mg":   ["Comprimidos"],
-    "5mg/ml": ["Inyectable"]
-  },
-  "Omeprazol": {
-    "20mg": ["Cápsulas"],
-    "40mg": ["Cápsulas", "Inyectable"]
-  },
-  "Pantoprazol": {
-    "20mg": ["Comprimidos"],
-    "40mg": ["Comprimidos", "Inyectable"]
-  },
-  "Ranitidina": {
-    "150mg": ["Comprimidos"],
-    "300mg": ["Comprimidos"]
-  },
-  // ── Neurológico / psiquiátrico ────────────────────────────────
-  "Carbamazepina": {
-    "200mg":     ["Comprimidos"],
-    "6.25mg/5ml": ["Suspensión pediátrica"]
-  },
-  "Clonazepam": {
-    "0.5mg":    ["Comprimidos"],
-    "1mg":      ["Comprimidos"],
-    "2mg":      ["Comprimidos"],
-    "2.5mg/ml": ["Gotas"]
-  },
-  "Haloperidol": {
-    "1mg":    ["Comprimidos"],
-    "5mg":    ["Comprimidos"],
-    "2mg/ml": ["Gotas"]
-  },
-  "Levodopa + Carbidopa": {
-    "100/25mg": ["Comprimidos"],
-    "250/25mg": ["Comprimidos"]
-  },
-  "Pramipexol": {
-    "0.25mg": ["Comprimidos"],
-    "1mg":    ["Comprimidos"]
-  },
-  "Risperidona": {
-    "1mg":    ["Comprimidos"],
-    "2mg":    ["Comprimidos"],
-    "1mg/ml": ["Solución oral"]
-  },
-  "Valproato de sodio": {
-    "200mg":     ["Comprimidos"],
-    "400mg":     ["Comprimidos"],
-    "500mg/5ml": ["Jarabe"]
-  },
-  // ── Tiroides ─────────────────────────────────────────────────
-  "Levotiroxina": {
-    "25mcg":  ["Comprimidos"],
-    "50mcg":  ["Comprimidos"],
-    "100mcg": ["Comprimidos"]
   },
   // ── Antihistamínicos ─────────────────────────────────────────
   "Difenhidramina": {
@@ -1255,6 +1382,7 @@ const CATALOGO = {
     "50mg":       ["Comprimidos"]
   },
   "Loratadina": {
+    "1mg/ml":  ["Jarabe"],
     "5mg/5ml": ["Jarabe"],
     "10mg":    ["Comprimidos"]
   },
@@ -1268,10 +1396,45 @@ const CATALOGO = {
     "100.000 UI/ml": ["Suspensión oral"],
     "100.000 UI/g":  ["Crema"]
   },
+  // ── Antiparasitarios ─────────────────────────────────────────
+  "Albendazol": {
+    "200mg":     ["Comprimidos"],
+    "400mg/10ml": ["Suspensión"]
+  },
+  "Mebendazol": {
+    "100mg/5ml": ["Suspensión"],
+    "200mg":     ["Comprimidos"]
+  },
   // ── Antiespasmódicos ─────────────────────────────────────────
   "Hioscina": {
     "10mg":    ["Comprimidos"],
     "20mg/ml": ["Inyectable"]
+  },
+  // ── Oftalmología ─────────────────────────────────────────────
+  "Cloranfenicol oftálmico": {
+    "0.5%": ["Colirio"]
+  },
+  "Homatropina": {
+    "4mg": ["Comprimidos", "Colirio"]
+  },
+  "Timolol oftálmico": {
+    "0.25%": ["Colirio"],
+    "0.5%":  ["Colirio"]
+  },
+  // ── Dermatología ─────────────────────────────────────────────
+  "Ácido Fusídico": {
+    "2%": ["Crema dérmica"]
+  },
+  "Gentamicina": {
+    "0.1%":    ["Crema"],
+    "80mg/2ml": ["Inyectable"]
+  },
+  "Mupirocina": {
+    "2%": ["Crema", "Ungüento"]
+  },
+  "Permetrina": {
+    "1%": ["Loción capilar"],
+    "5%": ["Crema"]
   },
   // ── Vitaminas / suplementos ───────────────────────────────────
   "Ácido Fólico": {
@@ -1279,80 +1442,57 @@ const CATALOGO = {
     "1mg":   ["Comprimidos"],
     "5mg":   ["Comprimidos"]
   },
-  "Ácido Fólico + Hierro": {
-    "60mg/0.4mg": ["Comprimidos"]
-  },
   "Calcio elemental": {
     "500mg":  ["Comprimidos"],
     "1000mg": ["Comprimidos"]
   },
   "Hierro (S. ferroso)": {
-    "40mg/ml": ["Gotas pediátricas"],
-    "25mg/5ml": ["Jarabe"],
-    "325mg":   ["Comprimidos"]
+    "12.5gr/100ml": ["Gotas pediátricas"],
+    "25mg/5ml":     ["Jarabe"],
+    "325mg":        ["Comprimidos"]
   },
   "Hierro + Ácido Fólico": {
-    "200mg/0.25mg": ["Cápsulas"]
+    "200mg/0.25mg": ["Comprimidos"]
+  },
+  "Polivitamínico": {
+    "Vit. A+C+D": ["Solución oral"]
   },
   "Sales de Rehidratación Oral": {
-    "—": ["Sobres"]
+    "27.9g": ["Sobres"]
   },
   "Vitamina A": {
-    "50.000 UI": ["Cápsulas"],
+    "50.000 UI":  ["Cápsulas"],
     "100.000 UI": ["Cápsulas"]
-  },
-  "Vitamina D": {
-    "400 UI":    ["Gotas"],
-    "2400 UI":   ["Cápsulas"],
-    "100.000 UI": ["Ampolla inyectable"]
-  },
-  "Vitamina B12": {
-    "1000mcg/ml": ["Inyectable"]
   },
   "Vitamina B Complejo": {
     "—": ["Comprimidos", "Inyectable"]
   },
-  // ── Antirretrovirales / VIH ───────────────────────────────────
-  "Lopinavir + Ritonavir": {
-    "200/50mg": ["Comprimidos"],
-    "80/20mg/ml": ["Solución oral"]
+  "Vitamina B12": {
+    "1000mcg/ml": ["Inyectable"]
   },
-  "Zidovudina": {
-    "300mg":   ["Comprimidos"],
-    "10mg/ml": ["Solución oral"]
-  },
-  // ── Antiparasitarios ─────────────────────────────────────────
-  "Albendazol": {
-    "200mg":     ["Comprimidos"],
-    "400mg/10ml": ["Suspensión"]
-  },
-  "Mebendazol": {
-    "100mg":     ["Comprimidos"],
-    "100mg/5ml": ["Suspensión"]
-  },
-  "Metronidazol (antiparasitario)": {
-    "250mg": ["Comprimidos"],
-    "500mg": ["Comprimidos"]
-  },
-  // ── Anticonvulsivantes ───────────────────────────────────────
-  "Fenobarbital": {
-    "15mg":   ["Comprimidos"],
-    "100mg":  ["Comprimidos"],
-    "40mg/ml": ["Gotas pediátricas"]
-  },
-  "Fenitoína": {
-    "100mg":   ["Cápsulas"],
-    "50mg/5ml": ["Suspensión pediátrica"]
+  "Vitamina D": {
+    "300-500 UI/gota": ["Solución oral"],
+    "400 UI":          ["Gotas"],
+    "2400 UI":         ["Cápsulas"],
+    "100.000 UI":      ["Ampolla inyectable"]
   },
   // ── Salud sexual y reproductiva ───────────────────────────────
   "Desogestrel": {
     "0.075mg": ["Comprimidos"]
   },
-  "Levonorgestrel": {
-    "1.5mg": ["Comprimido (anticoncepción de emergencia)"]
+  "DIU T de cobre 380": {
+    "—": ["Dispositivo intrauterino"]
   },
-  "Levonorgestrel + Estradiol": {
-    "0.15/0.03mg": ["Comprimidos"]
+  "DIU tipo multiload": {
+    "—": ["Dispositivo intrauterino"]
+  },
+  "Implante subdérmico": {
+    "68mg (Etonogestrel)": ["Implante"]
+  },
+  "Levonorgestrel": {
+    "0.75mg": ["Comprimidos (2 tomas)"],
+    "1.5mg":  ["Comprimido (anticoncepción de emergencia)"],
+    "52mg":   ["SIU (dispositivo intrauterino)"]
   },
   "Levonorgestrel + Etinilestradiol": {
     "0.10/0.02mg": ["Comprimidos"],
@@ -1364,13 +1504,7 @@ const CATALOGO = {
   "Noretisterona + Estradiol": {
     "50/5mg/ml": ["Inyectable mensual"]
   },
-  "DIU T de cobre 380": {
-    "—": ["Dispositivo intrauterino"]
-  },
-  "Implante subdérmico": {
-    "68mg": ["Implante"]
-  },
-  // ── Emergencia / uso hospitalario ────────────────────────────
+  // ── Emergencia / hospitalario ─────────────────────────────────
   "Adrenalina": {
     "1mg/ml": ["Inyectable (ampolla)"]
   },
@@ -1400,53 +1534,22 @@ const CATALOGO = {
     "2%":  ["Inyectable"],
     "10%": ["Spray"]
   },
-  // ── Dermatología ─────────────────────────────────────────────
-  "Gentamicina": {
-    "0.1%":    ["Crema"],
-    "80mg/2ml": ["Inyectable"]
-  },
-  "Mupirocina": {
-    "2%": ["Crema", "Ungüento"]
-  },
-  "Permetrina": {
-    "1%": ["Loción capilar"],
-    "5%": ["Crema"]
-  },
-  // ── Oftalmología ─────────────────────────────────────────────
-  "Cloranfenicol oftálmico": {
-    "0.5%": ["Colirio"]
-  },
-  "Timolol oftálmico": {
-    "0.25%": ["Colirio"],
-    "0.5%":  ["Colirio"]
-  },
-  // ── Expectorantes / tos ───────────────────────────────────────
+  // ── Expectorantes / mucolíticos ───────────────────────────────
   "Bromhexina": {
     "4mg/5ml": ["Jarabe"],
     "8mg":     ["Comprimidos"]
-  },
-  // ── Antiespasmódicos GI ───────────────────────────────────────
-  "Buscapina compuesta": {
-    "—": ["Comprimidos", "Inyectable"]
-  },
-  // ── Antiácido / protector gástrico ────────────────────────────
-  "Sucralfato": {
-    "1g": ["Comprimidos", "Suspensión oral"]
   },
   // ── Misceláneos ───────────────────────────────────────────────
   "Allopurinol": {
     "100mg": ["Comprimidos"],
     "300mg": ["Comprimidos"]
   },
-  "Penicilina G": {
-    "1.000.000 UI":   ["Inyectable"],
-    "2.400.000 UI":   ["Inyectable"]
-  },
   "Progesterona micronizada": {
     "100mg": ["Cápsulas"],
     "200mg": ["Cápsulas"]
   }
 };
+
 
 const DROGAS = Object.keys(CATALOGO).sort((a, b) => a.localeCompare(b, 'es'));
 
@@ -1861,13 +1964,213 @@ async function registrarSalida() {
 }
 
 // ─── REMEDIAR ────────────────────────────────────────────────
-function procesarPDF(input) {
+// ══════════════════════════════════════════════════════════════
+// REMEDIAR — CSV
+// ══════════════════════════════════════════════════════════════
+var remFilas = [];   // filas parseadas del CSV
+var remHeaders = []; // encabezados del CSV
+
+function procesarCSV(input) {
   if (!input.files[0]) return;
-  document.getElementById('btn-analizar').style.display = 'flex';
-  toast(`PDF seleccionado: ${input.files[0].name}`, '');
+  var file = input.files[0];
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var texto = e.target.result;
+      parsearCSV(texto);
+    } catch(err) {
+      toast('No se pudo leer el archivo: ' + err.message, 'err');
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
 }
-function analizarPDF() { toast('Integrar con lógica existente del parser', 'err'); }
-function confirmarREMEDIAR() { toast('Funcionalidad pendiente de integración', ''); }
+
+function parsearCSV(texto) {
+  // Detectar separador: ; o ,
+  var lineas = texto.split(/\r?\n/).filter(function(l) { return l.trim() !== ''; });
+  if (lineas.length < 2) { toast('El CSV está vacío o no tiene datos', 'err'); return; }
+
+  var sep = lineas[0].includes(';') ? ';' : ',';
+
+  function parsearLinea(linea) {
+    // Manejo de comillas
+    var resultado = [];
+    var enComilla = false;
+    var campo = '';
+    for (var i = 0; i < linea.length; i++) {
+      var c = linea[i];
+      if (c === '"') { enComilla = !enComilla; }
+      else if (c === sep && !enComilla) { resultado.push(campo.trim()); campo = ''; }
+      else { campo += c; }
+    }
+    resultado.push(campo.trim());
+    return resultado;
+  }
+
+  remHeaders = parsearLinea(lineas[0]);
+  remFilas = [];
+  for (var i = 1; i < lineas.length; i++) {
+    var cols = parsearLinea(lineas[i]);
+    if (cols.every(function(c) { return c === ''; })) continue;
+    var obj = {};
+    remHeaders.forEach(function(h, j) { obj[h] = cols[j] || ''; });
+    remFilas.push(obj);
+  }
+
+  // Llenar selects de columnas
+  var selMed  = document.getElementById('rem-col-med');
+  var selCant = document.getElementById('rem-col-cant');
+  selMed.innerHTML = selCant.innerHTML = '';
+  remHeaders.forEach(function(h) {
+    selMed.innerHTML  += '<option value="' + esc(h) + '">' + esc(h) + '</option>';
+    selCant.innerHTML += '<option value="' + esc(h) + '">' + esc(h) + '</option>';
+  });
+
+  // Auto-detectar columnas por nombre probable
+  var probMed  = ['medicamento','droga','nombre','drug','med','descripcion','producto'];
+  var probCant = ['cantidad','cant','qty','units','unidades','quantity'];
+  remHeaders.forEach(function(h, i) {
+    var hl = h.toLowerCase();
+    if (probMed.some(function(p)  { return hl.includes(p); })) selMed.selectedIndex  = i;
+    if (probCant.some(function(p) { return hl.includes(p); })) selCant.selectedIndex = i;
+  });
+
+  document.getElementById('rem-upload-zone').style.display    = 'none';
+  document.getElementById('rem-config-cols').style.display    = 'block';
+  document.getElementById('rem-preview').style.display        = 'block';
+
+  // Cargar responsable guardado
+  var resp = localStorage.getItem('responsable') || '';
+  if (resp) document.getElementById('rem-responsable').value = resp;
+
+  actualizarPreview();
+  toast('CSV cargado: ' + remFilas.length + ' filas', 'ok');
+}
+
+function normalizarClave(nombre) {
+  if (!nombre) return '';
+  var n = nombre.trim();
+
+  // Buscar coincidencia exacta en el catálogo
+  if (CATALOGO[n]) return n;
+
+  // Buscar coincidencia ignorando mayúsculas/acentos
+  var nLower = n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  var drogas = Object.keys(CATALOGO);
+  for (var i = 0; i < drogas.length; i++) {
+    var dLower = drogas[i].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    if (dLower === nLower) return drogas[i];
+    if (nLower.includes(dLower) || dLower.includes(nLower)) return drogas[i];
+  }
+
+  // Buscar por primera palabra (ej: "Amoxicilina 500mg comp x 21u" → "Amoxicilina")
+  var primera = nLower.split(/\s+/)[0];
+  for (var j = 0; j < drogas.length; j++) {
+    var dFirst = drogas[j].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').split(/\s+/)[0];
+    if (dFirst === primera) return drogas[j];
+  }
+
+  return ''; // no encontrado
+}
+
+function actualizarPreview() {
+  var colMed  = document.getElementById('rem-col-med').value;
+  var colCant = document.getElementById('rem-col-cant').value;
+  var tbody   = document.getElementById('rem-tbody');
+  var sinClave = false;
+
+  tbody.innerHTML = '';
+  remFilas.forEach(function(fila, idx) {
+    var nombreCSV = fila[colMed] || '';
+    var cantCSV   = fila[colCant] || '';
+    var clave     = normalizarClave(nombreCSV);
+    if (!clave) sinClave = true;
+
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input type="checkbox" class="rem-chk" data-idx="' + idx + '" checked></td>' +
+      '<td style="font-size:13px">' + esc(nombreCSV) + '</td>' +
+      '<td><input type="text" class="rem-clave-input" data-idx="' + idx + '" value="' + esc(clave) + '" ' +
+        'placeholder="Escribí la clave manualmente" ' +
+        'style="width:100%;padding:5px 8px;border:1px solid ' + (clave ? 'var(--neutro-200)' : 'var(--advert)') + ';border-radius:var(--radius-sm);font-size:12px;font-family:var(--font)"></td>' +
+      '<td><input type="number" class="rem-cant-input" data-idx="' + idx + '" value="' + esc(cantCSV) + '" min="0" ' +
+        'style="width:100%;padding:5px 8px;border:1px solid var(--neutro-200);border-radius:var(--radius-sm);font-size:12px;font-family:var(--mono);text-align:right"></td>';
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('rem-count').textContent = remFilas.length;
+  document.getElementById('rem-alerta-sin-clave').style.display = sinClave ? 'block' : 'none';
+  document.getElementById('rem-chk-all').checked = true;
+}
+
+function toggleTodos(chk) {
+  document.querySelectorAll('.rem-chk').forEach(function(c) { c.checked = chk.checked; });
+}
+
+async function confirmarREMEDIAR() {
+  var dep   = document.getElementById('rem-dep').value;
+  var resp  = document.getElementById('rem-responsable').value.trim();
+  if (!dep)  { toast('Seleccioná la dependencia destino', 'err'); return; }
+  if (!resp) { toast('Ingresá el responsable', 'err'); return; }
+
+  var fecha = new Date().toISOString().split('T')[0];
+  var filas = [];
+
+  document.querySelectorAll('.rem-chk:checked').forEach(function(chk) {
+    var idx   = parseInt(chk.dataset.idx);
+    var clave = document.querySelector('.rem-clave-input[data-idx="' + idx + '"]').value.trim();
+    var cant  = parseInt(document.querySelector('.rem-cant-input[data-idx="' + idx + '"]').value) || 0;
+    if (!clave || cant <= 0) return;
+    filas.push({ clave: clave, cant: cant });
+  });
+
+  if (filas.length === 0) { toast('No hay filas válidas para cargar', 'err'); return; }
+
+  var btn = document.getElementById('btn-confirmar-rem');
+  btn.disabled = true;
+  btn.textContent = 'Enviando ' + filas.length + ' registros…';
+
+  var errores = 0;
+  for (var i = 0; i < filas.length; i++) {
+    var datos = {
+      tipo:              'entrada',
+      fecha:             fecha,
+      dependencia:       dep,
+      medicamento:       filas[i].clave,
+      medicamento_clave: filas[i].clave,
+      cantidad:          filas[i].cant,
+      fecha_vencimiento: '',
+      laboratorio:       'REMEDIAR',
+      n_lote:            'REMEDIAR-' + fecha,
+      responsable:       resp,
+      timestamp:         new Date().toLocaleString('es-AR')
+    };
+    var ok = await enviarAlSheet(datos);
+    if (!ok) errores++;
+    // Pequeña pausa para no saturar Apps Script
+    await new Promise(function(r) { setTimeout(r, 120); });
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Confirmar carga al Sheet';
+
+  if (errores === 0) {
+    toast(filas.length + ' entradas registradas correctamente', 'ok');
+    resetREMEDIAR();
+  } else {
+    toast((filas.length - errores) + ' enviados, ' + errores + ' con error', 'err');
+  }
+}
+
+function resetREMEDIAR() {
+  remFilas = [];
+  remHeaders = [];
+  document.getElementById('csv-input').value = '';
+  document.getElementById('rem-upload-zone').style.display = 'block';
+  document.getElementById('rem-config-cols').style.display = 'none';
+  document.getElementById('rem-preview').style.display     = 'none';
+  document.getElementById('rem-tbody').innerHTML = '';
+}
 
 // ─── Historial ────────────────────────────────────────────────
 function guardarHistorial(tipo, datos) {
