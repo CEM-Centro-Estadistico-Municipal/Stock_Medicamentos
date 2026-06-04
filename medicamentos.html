@@ -1959,17 +1959,18 @@ async function registrarSalida() {
 
 // ─── REMEDIAR ────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
-// REMEDIAR — PDF
+// REMEDIAR — Parser formulario B (PDF digital)
+// Columnas: Stock Inicial | C.S.L. | Recibidas | Clering |
+//           Salidas2 | Salidas3 | Salidas4 | Ajuste | Stock Final
 // ══════════════════════════════════════════════════════════════
 
 async function procesarPDF(input) {
   if (!input.files[0]) return;
 
-  document.querySelector('.file-zone').style.display = 'none';
+  document.querySelector('.file-zone').style.display     = 'none';
   document.getElementById('rem-procesando').style.display = 'block';
 
   try {
-    // Cargar PDF.js si no está cargado
     if (typeof pdfjsLib === 'undefined') {
       await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
       pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -1979,104 +1980,248 @@ async function procesarPDF(input) {
     const arrayBuffer = await input.files[0].arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
-    // Extraer todo el texto del PDF página por página
-    let textoCompleto = '';
+    let todasLasEntradas = [];
+
     for (let p = 1; p <= pdf.numPages; p++) {
-      const pagina = await pdf.getPage(p);
-      const contenido = await pagina.getTextContent();
-      // Reconstruir líneas preservando posición vertical
-      const items = contenido.items;
-      items.sort((a, b) => {
-        const dy = Math.round(b.transform[5] - a.transform[5]);
-        return dy !== 0 ? dy : a.transform[4] - b.transform[4];
-      });
-      let yAnterior = null;
-      items.forEach(item => {
-        const y = Math.round(item.transform[5]);
-        if (yAnterior !== null && Math.abs(y - yAnterior) > 3) textoCompleto += '\n';
-        textoCompleto += item.str + ' ';
-        yAnterior = y;
-      });
-      textoCompleto += '\n---PAGINA---\n';
+      const page    = await pdf.getPage(p);
+      const vp      = page.getViewport({ scale: 1 });
+      const content = await page.getTextContent();
+      const found   = parsearPaginaFormularioB(content.items, vp.width);
+      todasLasEntradas = todasLasEntradas.concat(found);
     }
 
-    const medicamentos = extraerMedicamentosDePDF(textoCompleto);
+    // Deduplicar por código
+    const seen = new Set();
+    const unicos = todasLasEntradas.filter(e => {
+      if (seen.has(e.codigo)) return false;
+      seen.add(e.codigo); return true;
+    });
 
     document.getElementById('rem-procesando').style.display = 'none';
-    document.querySelector('.file-zone').style.display = 'block';
+    document.querySelector('.file-zone').style.display       = 'block';
 
-    if (medicamentos.length === 0) {
-      toast('No se detectaron medicamentos en el PDF. Verificá que sea el formulario B correcto.', 'err');
+    if (unicos.length === 0) {
+      toast('No se detectaron medicamentos. Verificá que sea el formulario B digital.', 'err');
       return;
     }
 
-    mostrarPreviewREMEDIAR(medicamentos);
+    mostrarPreviewREMEDIAR(unicos);
 
   } catch (err) {
     document.getElementById('rem-procesando').style.display = 'none';
-    document.querySelector('.file-zone').style.display = 'block';
+    document.querySelector('.file-zone').style.display       = 'block';
     toast('Error al leer el PDF: ' + err.message, 'err');
     console.error(err);
   }
 }
 
-function extraerMedicamentosDePDF(texto) {
-  const drogas = Object.keys(CATALOGO);
-  const encontrados = [];
-  const yaAgregados = new Set();
+// ── Parsear página ────────────────────────────────────────────
+function parsearPaginaFormularioB(items, pageWidth) {
+  const YTHRESH    = 4;
+  const NUM_BOUNDARY = pageWidth * 0.52; // nombre < 52% del ancho, números >= 52%
 
-  // Partir en líneas y limpiar
-  const lineas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 2);
-
-  lineas.forEach(linea => {
-    const lineaNorm = linea.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-    drogas.forEach(droga => {
-      const drogaNorm = droga.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const primera   = drogaNorm.split(/\s+/)[0];
-
-      // Buscar si la droga aparece en la línea
-      if (lineaNorm.includes(drogaNorm) || lineaNorm.includes(primera)) {
-        if (!yaAgregados.has(droga)) {
-          yaAgregados.add(droga);
-          // Capturar el texto original de la línea como nombre del PDF
-          encontrados.push({
-            nombrePDF: linea.substring(0, 60).trim(),
-            clave:     droga
-          });
-        }
-      }
-    });
+  // Agrupar items por fila (mismo Y ± threshold)
+  const rows = [];
+  items.forEach(item => {
+    const y   = Math.round(item.transform[5]);
+    const x   = Math.round(item.transform[4]);
+    const str = item.str.trim();
+    if (!str) return;
+    let row = rows.find(r => Math.abs(r.y - y) <= YTHRESH);
+    if (!row) { row = { y, cells: [] }; rows.push(row); }
+    row.cells.push({ x, str });
   });
 
-  return encontrados;
+  // Ordenar filas de arriba hacia abajo (mayor y = más arriba en PDF)
+  rows.sort((a, b) => b.y - a.y);
+  rows.forEach(r => r.cells.sort((a, b) => a.x - b.x));
+
+  const entries = [];
+  let cur = null;
+
+  rows.forEach(row => {
+    const nameCells = row.cells.filter(c => c.x <  NUM_BOUNDARY);
+    const numCells  = row.cells.filter(c => c.x >= NUM_BOUNDARY);
+    const nameStr   = nameCells.map(c => c.str).join(' ').trim();
+
+    // ¿Empieza con código de 3 dígitos?
+    const codeMatch = nameStr.match(/^(\d{3})\b/);
+
+    if (codeMatch) {
+      if (cur) {
+        const parsed = finalizarEntrada(cur);
+        if (parsed) entries.push(parsed);
+      }
+      cur = {
+        codigo:    codeMatch[1],
+        nameParts: [nameStr.replace(/^\d{3}\s*/, '').trim()],
+        numCells:  [...numCells]
+      };
+    } else if (cur) {
+      if (nameStr) cur.nameParts.push(nameStr);
+      cur.numCells = cur.numCells.concat(numCells);
+    }
+  });
+
+  if (cur) {
+    const parsed = finalizarEntrada(cur);
+    if (parsed) entries.push(parsed);
+  }
+
+  return entries;
 }
 
-function mostrarPreviewREMEDIAR(medicamentos) {
+// ── Extraer los 9 números de columna de una entrada ──────────
+function finalizarEntrada(cur) {
+  const nombre = cur.nameParts.join(' ').replace(/\s+/g, ' ').trim();
+  if (!nombre) return null;
+
+  cur.numCells.sort((a, b) => a.x - b.x);
+
+  // Extraer texto de celdas numéricas y parsear 9 columnas
+  const nums = extraerNueveNums(cur.numCells);
+  if (!nums) return null;
+
+  return {
+    codigo:      cur.codigo,
+    nombre:      nombre,
+    stockInicial: nums[0],
+    csl:          nums[1],   // Unidades C.S.L. → entrada
+    recibidas:    nums[2],
+    clering:      nums[3],   // Clering → salidas
+    stockFinal:   nums[8]
+  };
+}
+
+// ── Extraer exactamente 9 enteros de las celdas numéricas ────
+function extraerNueveNums(cells) {
+  if (cells.length === 0) return null;
+
+  // Estrategia 1: si hay exactamente 9 celdas con un número cada una
+  if (cells.length === 9 && cells.every(c => /^\d+$/.test(c.str))) {
+    return cells.map(c => parseInt(c.str));
+  }
+
+  // Estrategia 2: bucket por posición X (9 columnas de igual ancho)
+  if (cells.length >= 9) {
+    const xMin = cells[0].x;
+    const xMax = cells[cells.length - 1].x;
+    const bw   = (xMax - xMin) / 8 || 1;
+    const buckets = Array(9).fill(0);
+    cells.forEach(c => {
+      const b = Math.min(8, Math.round((c.x - xMin) / bw));
+      buckets[b] = parseInt(c.str) || 0;
+    });
+    return buckets;
+  }
+
+  // Estrategia 3: parsear texto concatenado (0000000, 4800000, etc.)
+  const texto = cells.map(c => c.str).join(' ');
+  return parsearTextoNums(texto);
+}
+
+function parsearTextoNums(texto) {
+  const tokens = texto.trim().split(/\s+/).filter(t => /^\d+$/.test(t));
+  const nums = [];
+
+  tokens.forEach(t => {
+    if (/^0+$/.test(t) && t.length > 1) {
+      // Ceros concatenados → separarlos
+      for (let i = 0; i < t.length; i++) nums.push(0);
+    } else if (t.length > 4) {
+      // Número largo → probablemente un número real concatenado con ceros al final
+      // Buscar cuántos ceros colgantes hay al final
+      const trailingZeros = t.match(/0+$/);
+      if (trailingZeros && trailingZeros[0].length > 1) {
+        const base  = t.slice(0, t.length - trailingZeros[0].length);
+        const zeros = trailingZeros[0].length;
+        nums.push(parseInt(base) || 0);
+        for (let i = 0; i < zeros; i++) nums.push(0);
+      } else {
+        nums.push(parseInt(t));
+      }
+    } else {
+      nums.push(parseInt(t) || 0);
+    }
+  });
+
+  while (nums.length < 9) nums.push(0);
+  return nums.slice(0, 9);
+}
+
+// ── Preview ───────────────────────────────────────────────────
+function mostrarPreviewREMEDIAR(entradas) {
   const tbody = document.getElementById('rem-tbody');
   tbody.innerHTML = '';
 
-  medicamentos.forEach((med, idx) => {
+  // Solo mostrar entradas donde se recibió algo O hay stock
+  // Pero mostrar todas para que el usuario pueda revisar
+  entradas.forEach((med, idx) => {
+    const clave   = normalizarClave(med.nombre);
+    const cslQty  = med.csl || 0;
+
     const tr = document.createElement('tr');
+    // Resaltar si tiene C.S.L. > 0
+    if (cslQty > 0) tr.style.background = 'var(--pos-bg)';
+
     tr.innerHTML =
-      '<td><input type="checkbox" class="rem-chk" data-idx="' + idx + '" checked></td>' +
-      '<td style="font-size:12px; color:var(--neutro-400)">' + esc(med.nombrePDF) + '</td>' +
-      '<td><input type="text" class="rem-clave-input" data-idx="' + idx + '" value="' + esc(med.clave) + '" ' +
-        'style="width:100%;padding:5px 8px;border:1px solid var(--neutro-200);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);font-weight:500"></td>' +
-      '<td><input type="number" class="rem-cant-input" data-idx="' + idx + '" value="" min="0" placeholder="0" ' +
-        'style="width:100%;padding:5px 8px;border:1px solid var(--azul-100);border-radius:var(--radius-sm);font-size:13px;font-family:var(--mono);text-align:right;background:var(--azul-50)"></td>';
+      '<td><input type="checkbox" class="rem-chk" data-idx="' + idx + '"' +
+        (cslQty > 0 ? ' checked' : '') + '></td>' +
+      '<td style="font-size:12px; color:var(--neutro-400); line-height:1.3">' +
+        '<strong style="color:var(--tinta); font-family:var(--mono); font-size:11px">#' + med.codigo + '</strong> ' +
+        esc(med.nombre) + '</td>' +
+      '<td><input type="text" class="rem-clave-input" data-idx="' + idx + '"' +
+        ' value="' + esc(clave) + '" placeholder="Sin coincidencia — escribí manualmente"' +
+        ' style="width:100%;padding:5px 8px;border:1px solid ' +
+        (clave ? 'var(--neutro-200)' : 'var(--advert)') +
+        ';border-radius:var(--radius-sm);font-size:12px;font-family:var(--font);font-weight:500"></td>' +
+      '<td><input type="number" class="rem-cant-input" data-idx="' + idx + '"' +
+        ' value="' + cslQty + '" min="0"' +
+        ' style="width:100%;padding:5px 8px;border:1px solid ' +
+        (cslQty > 0 ? 'var(--pos)' : 'var(--neutro-200)') +
+        ';border-radius:var(--radius-sm);font-size:13px;font-family:var(--mono);text-align:right;' +
+        (cslQty > 0 ? 'background:var(--pos-bg);font-weight:600' : '') + '"></td>';
     tbody.appendChild(tr);
   });
 
-  document.getElementById('rem-count').textContent = medicamentos.length + ' medicamentos';
-  document.getElementById('rem-preview').style.display = 'block';
-  document.getElementById('rem-chk-all').checked = true;
+  // Mostrar conteos
+  const conStock = entradas.filter(e => (e.csl || 0) > 0).length;
+  document.getElementById('rem-count').textContent =
+    entradas.length + ' medicamentos — ' + conStock + ' con cantidad recibida';
 
-  // Cargar responsable guardado
+  document.getElementById('rem-preview').style.display = 'block';
+  document.getElementById('rem-chk-all').checked = false; // solo marcados los que tienen csl > 0
+
+  // Responsable guardado
   const resp = localStorage.getItem('responsable') || '';
   if (resp) document.getElementById('rem-responsable').value = resp;
 
-  toast(medicamentos.length + ' medicamentos detectados. Completá las cantidades.', 'ok');
+  toast('PDF procesado: ' + conStock + ' medicamentos con cantidad recibida', 'ok');
+}
+
+// ── Normalizar clave contra catálogo ─────────────────────────
+function normalizarClave(nombre) {
+  if (!nombre) return '';
+  const n  = nombre.trim();
+  if (CATALOGO[n]) return n;
+
+  const nLow = n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const drogas = Object.keys(CATALOGO);
+
+  // Coincidencia exacta sin acentos/mayúsculas
+  for (const d of drogas) {
+    const dLow = d.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (dLow === nLow) return d;
+  }
+
+  // Coincidencia por primera(s) palabra(s) del nombre del catálogo
+  for (const d of drogas) {
+    const dLow    = d.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const dWords  = dLow.split(/\s+/).slice(0, 2).join(' ');  // 1 o 2 palabras
+    if (nLow.startsWith(dWords)) return d;
+  }
+
+  return '';
 }
 
 function toggleTodos(chk) {
@@ -2101,7 +2246,7 @@ async function confirmarREMEDIAR() {
   });
 
   if (filas.length === 0) {
-    toast('Completá al menos una cantidad mayor a 0', 'err');
+    toast('No hay filas seleccionadas con cantidad > 0', 'err');
     return;
   }
 
@@ -2141,9 +2286,9 @@ async function confirmarREMEDIAR() {
 }
 
 function resetREMEDIAR() {
-  document.getElementById('pdf-input').value = '';
-  document.getElementById('rem-preview').style.display   = 'none';
-  document.getElementById('rem-tbody').innerHTML = '';
+  document.getElementById('pdf-input').value          = '';
+  document.getElementById('rem-preview').style.display = 'none';
+  document.getElementById('rem-tbody').innerHTML       = '';
 }
 
 function cargarScript(src) {
