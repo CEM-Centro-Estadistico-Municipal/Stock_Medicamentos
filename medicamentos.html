@@ -534,6 +534,53 @@
   }
   .btn-save-url:hover { background: var(--azul-800); }
   #result-count { font-size: 12px; color: var(--neutro-400); margin-left: auto; }
+  /* ── Lista dinámica de medicamentos ─────────────────────── */
+  .med-lista { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .med-lista-item {
+    background: #fff; border: 1px solid var(--neutro-200);
+    border-radius: var(--radius-sm); padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 8px;
+    position: relative;
+  }
+  .med-lista-item-header {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; font-weight: 600; color: var(--azul-700);
+    text-transform: uppercase; letter-spacing: .05em;
+  }
+  .med-lista-item-detalle {
+    font-size: 13px; font-weight: 500; color: var(--tinta);
+  }
+  .med-lista-item-meta {
+    font-family: var(--mono); font-size: 12px; color: var(--neutro-400);
+  }
+  .btn-eliminar-med {
+    border: none; background: none; cursor: pointer;
+    color: var(--alerta); font-size: 18px; line-height: 1;
+    padding: 0 4px; border-radius: var(--radius-sm);
+  }
+  .btn-eliminar-med:hover { background: var(--alerta-bg); }
+
+  .btn-agregar-med {
+    width: 100%; padding: 9px; margin-top: 10px;
+    border: 1.5px dashed var(--azul-100); border-radius: var(--radius-sm);
+    background: var(--azul-50); color: var(--azul-700);
+    font-family: var(--font); font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all .15s; display: flex;
+    align-items: center; justify-content: center; gap: 6px;
+  }
+  .btn-agregar-med:hover { border-color: var(--azul-700); background: var(--azul-100); }
+
+  /* Cantidad + unidad en línea */
+  .cant-unidad-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  /* Historial paciente */
+  .hist-pac-item {
+    background: #fff; border: 1px solid var(--neutro-200);
+    border-radius: var(--radius-sm); padding: 10px 12px;
+    margin-bottom: 6px; font-size: 13px;
+  }
+  .hist-pac-fecha { font-family: var(--mono); font-size: 11px; color: var(--neutro-400); }
+
 </style>
 </head>
 <body>
@@ -556,6 +603,7 @@
   <button class="tab-btn" onclick="showTab('salida', this)">Salida</button>
   <button class="tab-btn" onclick="showTab('remediar', this)">REMEDIAR</button>
   <button class="tab-btn" onclick="showTab('stock', this)">Consulta stock</button>
+  <button class="tab-btn" onclick="showTab('pacientes', this)">Pacientes</button>
 </div>
 
 <!-- ══ TAB ENTRADA ══════════════════════════════════════════ -->
@@ -590,6 +638,17 @@
         <option>CIC</option>
         <option>Asistencia</option>
         <option>Otros</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Origen del stock <span class="req">*</span></label>
+      <select id="e-origen">
+        <option value="">— Seleccioná —</option>
+        <option value="REMEDIAR">REMEDIAR</option>
+        <option value="Municipal">Municipal</option>
+        <option value="Provincial">Provincial</option>
+        <option value="Otro">Otro</option>
       </select>
     </div>
 
@@ -632,8 +691,19 @@
     <input type="hidden" id="e-med-nombre">
 
     <div class="field">
-      <label>Cantidad <span class="req">*</span></label>
-      <input type="number" id="e-cantidad" min="1" placeholder="0">
+      <label>Cantidad y unidad <span class="req">*</span></label>
+      <div class="cant-unidad-row">
+        <input type="number" id="e-cantidad" min="1" placeholder="0">
+        <select id="e-unidad">
+          <option value="Envases">Envases</option>
+          <option value="Blísteres">Blísteres</option>
+          <option value="Comprimidos">Comprimidos</option>
+          <option value="Frascos">Frascos</option>
+          <option value="Ampollas">Ampollas</option>
+          <option value="Sobres">Sobres</option>
+          <option value="Unidades">Unidades</option>
+        </select>
+      </div>
     </div>
 
     <div class="field">
@@ -792,11 +862,11 @@
       </div>
     </div>
 
-    <!-- Medicamento (siempre visible) -->
+    <!-- Selector de medicamento para agregar a la lista -->
     <div class="med-selector">
       <div class="med-selector-title">
         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-        Medicamento
+        Agregar medicamento
       </div>
       <div class="med-step">
         <label>1. Droga <span class="req">*</span></label>
@@ -812,25 +882,45 @@
           <option value="">— Primero elegí la droga —</option>
         </select>
       </div>
-      <div class="med-step" style="margin-bottom:0">
+      <div class="med-step">
         <label>3. Presentación</label>
         <select id="s-presentacion" onchange="onPresentacionChange('s')" disabled>
           <option value="">— Primero elegí la dosis —</option>
         </select>
       </div>
+      <div class="med-step" style="margin-bottom:0">
+        <label>4. Cantidad y unidad <span class="req">*</span></label>
+        <div class="cant-unidad-row">
+          <input type="number" id="s-cantidad" min="1" placeholder="0">
+          <select id="s-unidad">
+            <option value="Envases">Envases</option>
+            <option value="Blísteres">Blísteres</option>
+            <option value="Comprimidos">Comprimidos</option>
+            <option value="Frascos">Frascos</option>
+            <option value="Ampollas">Ampollas</option>
+            <option value="Sobres">Sobres</option>
+            <option value="Unidades">Unidades</option>
+          </select>
+        </div>
+      </div>
       <div class="clave-badge" id="s-clave-badge">
         Se registrará como: <strong id="s-clave-texto"></strong>
         <button onclick="limpiarMed('s')">Cambiar</button>
       </div>
+      <button type="button" class="btn-agregar-med" onclick="agregarMedALista()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Agregar a la lista
+      </button>
     </div>
 
     <input type="hidden" id="s-med-clave">
     <input type="hidden" id="s-med-nombre">
     <input type="hidden" id="s-tipo-salida">
 
-    <div class="field">
-      <label>Cantidad <span class="req">*</span></label>
-      <input type="number" id="s-cantidad" min="1" placeholder="0">
+    <!-- Lista acumulada de medicamentos -->
+    <div id="s-med-lista" class="med-lista" style="display:none">
+      <div style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--neutro-400); margin-bottom:4px">Medicamentos a registrar</div>
+      <div id="s-med-lista-items"></div>
     </div>
 
     <button class="btn btn-primario" id="btn-salida" onclick="registrarSalida()">
@@ -1017,6 +1107,46 @@
       </thead>
       <tbody id="stock-tbody"></tbody>
     </table>
+  </div>
+</div>
+
+
+<!-- ══ TAB PACIENTES ════════════════════════════════════════ -->
+<div id="tab-pacientes" class="tab-content">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon" style="background:var(--ocre-50); color:var(--ocre-500)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <h2>Historial de entregas por paciente</h2>
+    </div>
+
+    <div style="display:flex; gap:8px; align-items:flex-end">
+      <div class="field" style="flex:1; margin:0">
+        <label>DNI del paciente</label>
+        <input type="text" id="pac-dni-buscar" placeholder="Ej: 28.456.789"
+          onkeydown="if(event.key==='Enter') buscarPaciente()">
+      </div>
+      <button class="btn-refresh" onclick="buscarPaciente()" style="margin-bottom:0; height:40px">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        Buscar
+      </button>
+    </div>
+
+    <div id="pac-resultado" style="display:none; margin-top:16px">
+      <div style="font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--neutro-400); margin-bottom:8px">
+        Entregas registradas — DNI <span id="pac-dni-mostrado"></span>
+      </div>
+      <div id="pac-lista"></div>
+    </div>
+
+    <div id="pac-vacio" style="display:none; margin-top:16px; text-align:center; color:var(--neutro-400); font-size:13px; padding:24px 0">
+      No se encontraron entregas para ese DNI.
+    </div>
+
+    <div id="pac-cargando" style="display:none; margin-top:16px; text-align:center; color:var(--neutro-400); font-size:13px; padding:24px 0">
+      Consultando…
+    </div>
   </div>
 </div>
 
@@ -1815,9 +1945,11 @@ async function registrarEntrada() {
     tipo: 'entrada',
     fecha: document.getElementById('e-fecha').value,
     dependencia: document.getElementById('e-dep').value,
+    origen: document.getElementById('e-origen').value,
     medicamento: getMedNombre('e'),
     medicamento_clave: getMedClave('e'),
     cantidad: document.getElementById('e-cantidad').value,
+    unidad: document.getElementById('e-unidad').value,
     fecha_vencimiento: document.getElementById('e-vencimiento').value,
     laboratorio: document.getElementById('e-laboratorio').value,
     n_lote: document.getElementById('e-lote').value,
@@ -1864,98 +1996,6 @@ document.addEventListener('change', function(e) {
       e.target.value === '__otra_cobertura__' ? 'block' : 'none';
   }
 });
-
-// ─── Registrar SALIDA ─────────────────────────────────────────
-async function registrarSalida() {
-  var tipo = document.getElementById('s-tipo-salida').value;
-
-  if (!validar([['s-fecha','Fecha'], ['s-dep','Dependencia']])) return;
-  if (!tipo) { toast('Seleccioná el tipo de salida', 'err'); return; }
-  if (!getMedNombre('s')) { toast('Seleccioná un medicamento', 'err'); document.getElementById('s-droga').focus(); return; }
-  if (!validar([['s-cantidad','Cantidad']])) return;
-
-  // Validaciones según tipo
-  if (tipo === 'lote') {
-    var dest = document.getElementById('s-destino-tipo').value;
-    if (!dest) { toast('Seleccioná el destino del lote', 'err'); return; }
-    if (dest === 'sala') {
-      var sala = document.getElementById('s-sala').value;
-      if (!sala) { toast('Seleccioná la sala', 'err'); return; }
-      if (sala === '__otra_sala__' && !document.getElementById('s-sala-otra').value.trim()) {
-        toast('Escribí el nombre de la sala', 'err'); return;
-      }
-    }
-    if (dest === 'operativo' && !document.getElementById('s-operativo-lugar').value.trim()) {
-      toast('Indicá el lugar del operativo', 'err'); return;
-    }
-    if (dest === 'otro' && !document.getElementById('s-otro-fin').value.trim()) {
-      toast('Especificá el destino', 'err'); return;
-    }
-  }
-
-  if (tipo === 'paciente') {
-    if (!validar([['s-pac-nombre','Nombre del paciente'], ['s-pac-dni','DNI'], ['s-receta','N° de receta']])) return;
-  }
-
-  const btn = document.getElementById('btn-salida');
-  btn.disabled = true; btn.textContent = 'Enviando...';
-
-  // Construir destino
-  var destino = '';
-  if (tipo === 'lote') {
-    var dt = document.getElementById('s-destino-tipo').value;
-    if (dt === 'sala') {
-      var sv = document.getElementById('s-sala').value;
-      destino = sv === '__otra_sala__'
-        ? document.getElementById('s-sala-otra').value.trim()
-        : sv;
-    } else if (dt === 'operativo') {
-      destino = 'Operativo: ' + document.getElementById('s-operativo-lugar').value.trim();
-    } else {
-      destino = document.getElementById('s-otro-fin').value.trim();
-    }
-  }
-
-  // Cobertura
-  var cobertura = '';
-  if (tipo === 'paciente') {
-    var cv = document.getElementById('s-pac-cobertura').value;
-    cobertura = cv === '__otra_cobertura__'
-      ? document.getElementById('s-pac-cobertura-otra').value.trim()
-      : cv;
-  }
-
-  const datos = {
-    tipo:               'salida',
-    tipo_salida:        tipo,
-    fecha:              document.getElementById('s-fecha').value,
-    dependencia:        document.getElementById('s-dep').value,
-    medicamento:        getMedNombre('s'),
-    medicamento_clave:  getMedClave('s'),
-    cantidad:           document.getElementById('s-cantidad').value,
-    // Lote
-    destino_tipo:       tipo === 'lote' ? document.getElementById('s-destino-tipo').value : '',
-    destino:            destino,
-    // Paciente
-    paciente_nombre:    tipo === 'paciente' ? document.getElementById('s-pac-nombre').value.trim() : '',
-    paciente_dni:       tipo === 'paciente' ? document.getElementById('s-pac-dni').value.trim() : '',
-    paciente_cobertura: cobertura,
-    n_receta:           tipo === 'paciente' ? document.getElementById('s-receta').value.trim() : '',
-    timestamp:          new Date().toLocaleString('es-AR')
-  };
-
-  const ok = await enviarAlSheet(datos);
-  btn.disabled = false;
-  btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="m16 13-4-4-4 4"/><path d="M8 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4"/><path d="M16 5h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4"/></svg> Registrar salida';
-
-  if (ok) {
-    toast('Salida registrada', 'ok');
-    guardarHistorial('salida', datos);
-    limpiarFormSalida();
-  } else {
-    toast('Error al enviar. Revisá la conexión.', 'err');
-  }
-}
 
 // ─── REMEDIAR ────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
@@ -2503,6 +2543,202 @@ function esc(str) {
   return String(str)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// LISTA DINÁMICA DE MEDICAMENTOS (SALIDA)
+// ══════════════════════════════════════════════════════════════
+let listaMeds = [];
+
+function agregarMedALista() {
+  const clave  = getMedClave('s');
+  const nombre = getMedNombre('s');
+  const cant   = parseInt(document.getElementById('s-cantidad').value) || 0;
+  const unidad = document.getElementById('s-unidad').value;
+
+  if (!nombre) { toast('Seleccioná un medicamento', 'err'); return; }
+  if (cant <= 0) { toast('Ingresá la cantidad', 'err'); document.getElementById('s-cantidad').focus(); return; }
+
+  listaMeds.push({ clave, nombre, cant, unidad });
+  renderListaMeds();
+  // Limpiar selector
+  limpiarMed('s');
+  document.getElementById('s-cantidad').value = '';
+  toast('Medicamento agregado a la lista', 'ok');
+}
+
+function renderListaMeds() {
+  const contenedor = document.getElementById('s-med-lista');
+  const items      = document.getElementById('s-med-lista-items');
+  if (listaMeds.length === 0) {
+    contenedor.style.display = 'none';
+    return;
+  }
+  contenedor.style.display = 'block';
+  items.innerHTML = listaMeds.map((m, i) => `
+    <div class="med-lista-item">
+      <div class="med-lista-item-header">
+        <span>Medicamento ${i + 1}</span>
+        <button class="btn-eliminar-med" onclick="eliminarMedDeLista(${i})" title="Eliminar">×</button>
+      </div>
+      <div class="med-lista-item-detalle">${esc(m.nombre)}</div>
+      <div class="med-lista-item-meta">${m.cant} ${esc(m.unidad)}</div>
+    </div>
+  `).join('');
+}
+
+function eliminarMedDeLista(idx) {
+  listaMeds.splice(idx, 1);
+  renderListaMeds();
+}
+
+// ──  Registrar SALIDA (múltiples medicamentos) ───────────────
+async function registrarSalida() {
+  const tipo = document.getElementById('s-tipo-salida').value;
+
+  if (!validar([['s-fecha','Fecha'], ['s-dep','Dependencia']])) return;
+  if (!tipo) { toast('Seleccioná el tipo de salida', 'err'); return; }
+
+  // Verificar que hay al menos un medicamento en la lista
+  if (listaMeds.length === 0) {
+    toast('Agregá al menos un medicamento a la lista', 'err'); return;
+  }
+
+  // Validaciones según tipo
+  if (tipo === 'lote') {
+    const dest = document.getElementById('s-destino-tipo').value;
+    if (!dest) { toast('Seleccioná el destino del lote', 'err'); return; }
+    if (dest === 'sala') {
+      const sala = document.getElementById('s-sala').value;
+      if (!sala) { toast('Seleccioná la sala', 'err'); return; }
+      if (sala === '__otra_sala__' && !document.getElementById('s-sala-otra').value.trim()) {
+        toast('Escribí el nombre de la sala', 'err'); return;
+      }
+    }
+    if (dest === 'operativo' && !document.getElementById('s-operativo-lugar').value.trim()) {
+      toast('Indicá el lugar del operativo', 'err'); return;
+    }
+    if (dest === 'otro' && !document.getElementById('s-otro-fin').value.trim()) {
+      toast('Especificá el destino', 'err'); return;
+    }
+  }
+
+  if (tipo === 'paciente') {
+    if (!validar([['s-pac-nombre','Nombre del paciente'], ['s-pac-dni','DNI'], ['s-receta','N° de receta']])) return;
+  }
+
+  const btn = document.getElementById('btn-salida');
+  btn.disabled = true; btn.textContent = 'Enviando…';
+
+  // Construir destino
+  let destino = '';
+  if (tipo === 'lote') {
+    const dt = document.getElementById('s-destino-tipo').value;
+    if (dt === 'sala') {
+      const sv = document.getElementById('s-sala').value;
+      destino = sv === '__otra_sala__' ? document.getElementById('s-sala-otra').value.trim() : sv;
+    } else if (dt === 'operativo') {
+      destino = 'Operativo: ' + document.getElementById('s-operativo-lugar').value.trim();
+    } else {
+      destino = document.getElementById('s-otro-fin').value.trim();
+    }
+  }
+
+  let cobertura = '';
+  if (tipo === 'paciente') {
+    const cv = document.getElementById('s-pac-cobertura').value;
+    cobertura = cv === '__otra_cobertura__' ? document.getElementById('s-pac-cobertura-otra').value.trim() : cv;
+  }
+
+  const base = {
+    tipo:               'salida',
+    tipo_salida:        tipo,
+    fecha:              document.getElementById('s-fecha').value,
+    dependencia:        document.getElementById('s-dep').value,
+    destino_tipo:       tipo === 'lote' ? document.getElementById('s-destino-tipo').value : '',
+    destino,
+    paciente_nombre:    tipo === 'paciente' ? document.getElementById('s-pac-nombre').value.trim() : '',
+    paciente_dni:       tipo === 'paciente' ? document.getElementById('s-pac-dni').value.trim() : '',
+    paciente_cobertura: cobertura,
+    n_receta:           tipo === 'paciente' ? document.getElementById('s-receta').value.trim() : '',
+    timestamp:          new Date().toLocaleString('es-AR')
+  };
+
+  let errores = 0;
+  for (const med of listaMeds) {
+    const datos = { ...base, medicamento: med.nombre, medicamento_clave: med.clave, cantidad: med.cant, unidad: med.unidad };
+    const ok = await enviarAlSheet(datos);
+    if (!ok) errores++;
+    await new Promise(r => setTimeout(r, 120));
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="m16 13-4-4-4 4"/><path d="M8 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4"/><path d="M16 5h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4"/></svg> Registrar salida';
+
+  if (errores === 0) {
+    toast(listaMeds.length + ' medicamento(s) registrados', 'ok');
+    guardarHistorial('salida', { ...base, medicamento: listaMeds.map(m => m.nombre).join(', '), cantidad: listaMeds.length });
+    listaMeds = [];
+    renderListaMeds();
+    limpiarFormSalida();
+  } else {
+    toast((listaMeds.length - errores) + ' enviados, ' + errores + ' con error', 'err');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// HISTORIAL POR PACIENTE
+// ══════════════════════════════════════════════════════════════
+async function buscarPaciente() {
+  const dni = document.getElementById('pac-dni-buscar').value.trim().replace(/\./g, '');
+  if (!dni) { toast('Ingresá un DNI', 'err'); return; }
+
+  document.getElementById('pac-resultado').style.display = 'none';
+  document.getElementById('pac-vacio').style.display     = 'none';
+  document.getElementById('pac-cargando').style.display  = 'block';
+
+  try {
+    const r    = await fetch(SCRIPT_URL + '?hoja=salidas');
+    const data = await r.json();
+    document.getElementById('pac-cargando').style.display = 'none';
+
+    if (!data.ok) throw new Error(data.error);
+
+    // Filtrar por DNI
+    const entregas = (data.rows || []).filter(row => {
+      const rowDni = (row['Paciente DNI'] || '').replace(/\./g, '');
+      return rowDni === dni;
+    });
+
+    document.getElementById('pac-dni-mostrado').textContent = document.getElementById('pac-dni-buscar').value.trim();
+
+    if (entregas.length === 0) {
+      document.getElementById('pac-vacio').style.display = 'block';
+      return;
+    }
+
+    // Ordenar por fecha desc
+    entregas.sort((a, b) => b['Fecha'] > a['Fecha'] ? 1 : -1);
+
+    const lista = document.getElementById('pac-lista');
+    lista.innerHTML = entregas.map(e => `
+      <div class="hist-pac-item">
+        <div style="font-weight:500">${esc(e['Medicamento'] || '—')}</div>
+        <div style="font-size:12px; color:var(--neutro-400); margin-top:3px; display:flex; gap:12px; flex-wrap:wrap">
+          <span class="hist-pac-fecha">${esc(e['Fecha'] || '')}</span>
+          <span>${esc(e['Cantidad'] || '')} ${esc(e['Unidad'] || '')}</span>
+          ${e['N° Receta'] ? '<span>Receta: ' + esc(e['N° Receta']) + '</span>' : ''}
+        </div>
+      </div>
+    `).join('');
+
+    document.getElementById('pac-resultado').style.display = 'block';
+
+  } catch (err) {
+    document.getElementById('pac-cargando').style.display = 'none';
+    toast('Error al consultar: ' + err.message, 'err');
+  }
 }
 
 cargarConfig();
