@@ -1042,6 +1042,14 @@
       <option value="asistencia">Asistencia</option>
     </select>
 
+    <select class="dep-select" id="origen-filter" onchange="renderStock()">
+      <option value="">Todos los orígenes</option>
+      <option value="REMEDIAR">REMEDIAR</option>
+      <option value="Municipal">Municipal</option>
+      <option value="Provincial">Provincial</option>
+      <option value="Sin especificar">Sin especificar</option>
+    </select>
+
     <div class="filter-group">
       <button class="filter-btn active" data-estado="" onclick="setEstadoFiltro(this)">Todos</button>
       <button class="filter-btn" data-estado="ok" onclick="setEstadoFiltro(this)">Disponible</button>
@@ -2460,12 +2468,43 @@ function ordenarPor(col) {
 function renderStock() {
   var busqueda = (document.getElementById('stock-search').value || '').toLowerCase().trim();
   var dep      = (document.getElementById('dep-filter').value || '').toLowerCase();
+  var origen   = (document.getElementById('origen-filter').value || '');
+
+  // Calcular cantidades según filtros de dependencia y origen
+  function calcCantidad(r) {
+    if (!origen && !dep) {
+      // Sin filtros: totales normales
+      return { cic: r.cic, asistencia: r.asistencia, otros: r.otros, total: r.total };
+    }
+
+    // Con filtro de origen y/o dependencia: recalcular desde depOrigen
+    var depOrigen = r.depOrigen || {};
+    var cic = 0, asist = 0, otros = 0;
+
+    for (var d in depOrigen) {
+      for (var o in depOrigen[d]) {
+        var cant = depOrigen[d][o];
+        if (origen && o !== origen) continue; // filtrar por origen
+        if      (d === 'CIC')        cic   += cant;
+        else if (d === 'Asistencia') asist += cant;
+        else                         otros += cant;
+      }
+    }
+
+    // Filtrar por dependencia
+    if (dep === 'cic')        { asist = 0; otros = 0; }
+    if (dep === 'asistencia') { cic   = 0; otros = 0; }
+
+    return { cic: cic, asistencia: asist, otros: otros, total: cic + asist + otros };
+  }
 
   var filtrado = stockData.filter(function(r) {
     if (busqueda && r.medicamento.toLowerCase().indexOf(busqueda) === -1) return false;
     if (filtroEstado && r.estado !== filtroEstado) return false;
-    if (dep === 'cic'        && r.cic <= 0)        return false;
-    if (dep === 'asistencia' && r.asistencia <= 0)  return false;
+    var c = calcCantidad(r);
+    if (dep === 'cic'        && c.cic <= 0)        return false;
+    if (dep === 'asistencia' && c.asistencia <= 0)  return false;
+    if (origen && c.total <= 0)                    return false;
     return true;
   });
 
@@ -2474,7 +2513,11 @@ function renderStock() {
     if (sortCol === 'medicamento' || sortCol === 'estado') {
       return sortAsc ? String(va).localeCompare(String(vb), 'es') : String(vb).localeCompare(String(va), 'es');
     }
-    return sortAsc ? va - vb : vb - va;
+    // Para columnas numéricas, usar los valores filtrados
+    var ca = calcCantidad(a), cb = calcCantidad(b);
+    var na = sortCol === 'cic' ? ca.cic : sortCol === 'asistencia' ? ca.asistencia : sortCol === 'otros' ? ca.otros : ca.total;
+    var nb = sortCol === 'cic' ? cb.cic : sortCol === 'asistencia' ? cb.asistencia : sortCol === 'otros' ? cb.otros : cb.total;
+    return sortAsc ? na - nb : nb - na;
   });
 
   ['medicamento','cic','asistencia','otros','total','estado'].forEach(function(c) {
@@ -2490,14 +2533,24 @@ function renderStock() {
   var tbody = document.getElementById('stock-tbody');
   tbody.innerHTML = '';
   filtrado.forEach(function(r) {
+    var c = calcCantidad(r);
+    // Badge de estado recalculado según filtro
+    var estadoFiltrado = c.total <= 0 ? 'sin_stock' : c.total <= 10 ? 'bajo' : 'ok';
+
+    // Mostrar badge de origen si hay filtro activo
+    var origenBadge = '';
+    if (origen) {
+      origenBadge = ' <span style="font-size:10px;padding:1px 6px;border-radius:999px;background:var(--ocre-50);color:var(--ocre-500);font-weight:600;vertical-align:middle">' + esc(origen) + '</span>';
+    }
+
     var tr = document.createElement('tr');
     tr.innerHTML =
-      '<td class="med-name">' + esc(r.medicamento) + '</td>' +
-      '<td class="num qty' + (r.cic <= 0 ? ' qty-zero' : '') + '">' + r.cic + '</td>' +
-      '<td class="num qty' + (r.asistencia <= 0 ? ' qty-zero' : '') + '">' + r.asistencia + '</td>' +
-      '<td class="num qty' + ((r.otros||0) <= 0 ? ' qty-zero' : '') + '">' + (r.otros||0) + '</td>' +
-      '<td class="num qty"><strong>' + r.total + '</strong></td>' +
-      '<td>' + estadoBadge(r.estado) + '</td>';
+      '<td class="med-name">' + esc(r.medicamento) + origenBadge + '</td>' +
+      '<td class="num qty' + (c.cic <= 0 ? ' qty-zero' : '') + '">' + c.cic + '</td>' +
+      '<td class="num qty' + (c.asistencia <= 0 ? ' qty-zero' : '') + '">' + c.asistencia + '</td>' +
+      '<td class="num qty' + (c.otros <= 0 ? ' qty-zero' : '') + '">' + (c.otros || 0) + '</td>' +
+      '<td class="num qty"><strong>' + c.total + '</strong></td>' +
+      '<td>' + estadoBadge(estadoFiltrado) + '</td>';
     tbody.appendChild(tr);
   });
 
