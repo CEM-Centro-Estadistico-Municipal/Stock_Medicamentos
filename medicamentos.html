@@ -1177,7 +1177,9 @@
 // La clave que se envía al Sheet es "Droga Dosis Presentacion"
 // (o "Droga Presentacion" si no tiene dosis)
 // ══════════════════════════════════════════════════════════════
-const CATALOGO = {
+// ── Catálogo: se carga desde el Sheet al iniciar ─────────────
+// Fallback local para que el formulario funcione sin conexión
+const CATALOGO_LOCAL = {
   // ── Analgésicos / antiinflamatorios ──────────────────────────
   "Aspirina": {
     "100mg": ["Comprimidos"],
@@ -1683,7 +1685,29 @@ const CATALOGO = {
 };
 
 
-const DROGAS = Object.keys(CATALOGO).sort((a, b) => a.localeCompare(b, 'es'));
+};
+
+// Catálogo activo (se reemplaza con datos del Sheet al cargar)
+let CATALOGO = CATALOGO_LOCAL;
+let DROGAS   = Object.keys(CATALOGO).sort((a, b) => a.localeCompare(b, 'es'));
+
+// ── Carga dinámica del catálogo desde "LISTADO MEDICAMENTOS" ──
+async function cargarCatalogo() {
+  try {
+    const r    = await fetch(SCRIPT_URL + '?hoja=catalogo');
+    const data = await r.json();
+    if (!data.ok || !data.catalogo || Object.keys(data.catalogo).length === 0) {
+      console.warn('Catálogo del Sheet vacío o sin respuesta — usando catálogo local.');
+      return;
+    }
+    CATALOGO = data.catalogo;
+    DROGAS   = Object.keys(CATALOGO).sort((a, b) => a.localeCompare(b, 'es'));
+    console.log('Catálogo cargado desde Sheet: ' + DROGAS.length + ' drogas.');
+  } catch (err) {
+    console.warn('No se pudo cargar el catálogo desde el Sheet — usando catálogo local:', err.message);
+    // CATALOGO_LOCAL ya está asignado como fallback
+  }
+}
 
 // ─── URL del Apps Script ──────────────────────────────────────
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzIZ_VlMiOOZFbVW8NJm3q4aehSbr2EkD2sfBiMCMoKjFgvsKSueFJnlaC31VXp7HOR/exec';
@@ -2794,7 +2818,8 @@ async function buscarPaciente() {
   }
 }
 
-cargarConfig();
+// Inicialización: primero carga el catálogo del Sheet, luego el resto
+cargarCatalogo().then(() => cargarConfig());
 </script>
 </body>
 </html>
