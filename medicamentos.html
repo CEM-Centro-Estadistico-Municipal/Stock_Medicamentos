@@ -1687,6 +1687,9 @@ const CATALOGO_LOCAL = {
 
 };
 
+// ─── URL del Apps Script ──────────────────────────────────────
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzIZ_VlMiOOZFbVW8NJm3q4aehSbr2EkD2sfBiMCMoKjFgvsKSueFJnlaC31VXp7HOR/exec';
+
 // Catálogo activo (se reemplaza con datos del Sheet al cargar)
 let CATALOGO = CATALOGO_LOCAL;
 let DROGAS   = Object.keys(CATALOGO).sort((a, b) => a.localeCompare(b, 'es'));
@@ -1705,12 +1708,8 @@ async function cargarCatalogo() {
     console.log('Catálogo cargado desde Sheet: ' + DROGAS.length + ' drogas.');
   } catch (err) {
     console.warn('No se pudo cargar el catálogo desde el Sheet — usando catálogo local:', err.message);
-    // CATALOGO_LOCAL ya está asignado como fallback
   }
 }
-
-// ─── URL del Apps Script ──────────────────────────────────────
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzIZ_VlMiOOZFbVW8NJm3q4aehSbr2EkD2sfBiMCMoKjFgvsKSueFJnlaC31VXp7HOR/exec';
 
 // ─── Estado del autocomplete ──────────────────────────────────
 let acIndex = { e: -1, s: -1 };
